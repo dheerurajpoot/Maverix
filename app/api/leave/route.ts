@@ -1,0 +1,144 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
+import connectDB from '@/lib/mongodb';
+import Leave from '@/models/Leave';
+import LeaveType from '@/models/LeaveType';
+import mongoose from 'mongoose';
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await connectDB();
+
+    const role = (session.user as any).role;
+    const userId = (session.user as any).id;
+
+    let query: any = {};
+
+    if (role === 'employee') {
+      // Employees can see both allotted leaves and their leave requests
+      query.userId = userId;
+    }
+
+    const leaves = await Leave.find(query)
+      .populate('userId', 'name email profileImage')
+      .populate('allottedBy', 'name email profileImage')
+      .populate('leaveType', 'name description')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // For allotted leaves, ensure remainingDays is calculated if missing
+    if (role === 'employee') {
+      for (const leave of leaves) {
+        if (leave.allottedBy && (leave.remainingDays === undefined || leave.remainingDays === null)) {
+          // Get the actual ObjectId (handle both populated and non-populated cases)
+          const userId = typeof leave.userId === 'object' && leave.userId?._id 
+            ? leave.userId._id 
+            : leave.userId;
+          const leaveTypeId = typeof leave.leaveType === 'object' && leave.leaveType?._id 
+            ? leave.leaveType._id 
+            : leave.leaveType;
+
+          // Calculate remaining days based on approved requests
+          const approvedRequests = await Leave.find({
+            userId: new mongoose.Types.ObjectId(userId),
+            leaveType: new mongoose.Types.ObjectId(leaveTypeId),
+            status: 'approved',
+            allottedBy: { $exists: false },
+          }).lean();
+
+          const totalUsed = approvedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+          leave.remainingDays = Math.max(0, (leave.days || 0) - totalUsed);
+
+          // Update in database
+          await Leave.findByIdAndUpdate(leave._id, { remainingDays: leave.remainingDays });
+        }
+      }
+    }
+
+    return NextResponse.json({ leaves });
+  } catch (error: any) {
+    console.error('Get leaves error:', error);
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { leaveType, startDate, endDate, reason } = await request.json();
+    const userId = (session.user as any).id;
+
+    if (!leaveType || !startDate || !endDate || !reason) {
+      return NextResponse.json(
+        { error: 'All fields are required' },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+
+    // Verify leave type exists and convert to ObjectId
+    const LeaveType = (await import('@/models/LeaveType')).default;
+    const leaveTypeId = new mongoose.Types.ObjectId(leaveType);
+    const leaveTypeExists = await LeaveType.findById(leaveTypeId);
+    if (!leaveTypeExists) {
+      return NextResponse.json({ error: 'Invalid leave type' }, { status: 400 });
+    }
+
+    // For employees, verify that this leave type has been allotted to them
+    if ((session.user as any).role === 'employee') {
+      const userIdObj = new mongoose.Types.ObjectId(userId);
+      const allottedLeave = await Leave.findOne({
+        userId: userIdObj,
+        leaveType: leaveTypeId,
+        allottedBy: { $exists: true, $ne: null },
+      });
+
+      if (!allottedLeave) {
+        return NextResponse.json(
+          { error: 'This leave type has not been allotted to you' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Calculate days
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    const leave = new Leave({
+      userId,
+      leaveType: leaveTypeId,
+      days,
+      startDate: start,
+      endDate: end,
+      reason,
+      status: 'pending', // Always pending - requires admin/HR approval
+    });
+
+    await leave.save();
+    await leave.populate('userId', 'name email profileImage');
+
+    return NextResponse.json({
+      message: 'Leave request submitted successfully',
+      leave,
+    });
+  } catch (error: any) {
+    console.error('Create leave error:', error);
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+  }
+}
+

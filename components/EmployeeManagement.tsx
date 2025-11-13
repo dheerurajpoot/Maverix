@@ -1,0 +1,354 @@
+'use client';
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Plus, Edit, Trash2, Mail, User } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
+import UserAvatar from './UserAvatar';
+import LoadingDots from './LoadingDots';
+
+interface Employee {
+  _id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'hr' | 'employee';
+  emailVerified: boolean;
+  profileImage?: string;
+}
+
+interface EmployeeManagementProps {
+  initialEmployees: Employee[];
+}
+
+export default function EmployeeManagement({ initialEmployees }: EmployeeManagementProps) {
+  const [employees, setEmployees] = useState(initialEmployees);
+  const [showModal, setShowModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    role: 'employee' as 'admin' | 'hr' | 'employee',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; employee: Employee | null }>({
+    isOpen: false,
+    employee: null,
+  });
+  const [deleting, setDeleting] = useState(false);
+  const toast = useToast();
+
+  const handleOpenModal = (employee?: Employee) => {
+    if (employee) {
+      setEditingEmployee(employee);
+      setFormData({
+        name: employee.name,
+        email: employee.email,
+        role: employee.role,
+      });
+    } else {
+      setEditingEmployee(null);
+      setFormData({ name: '', email: '', role: 'employee' });
+    }
+    setShowModal(true);
+    setError('');
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingEmployee(null);
+    setFormData({ name: '', email: '', role: 'employee' });
+    setError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const url = editingEmployee
+        ? `/api/users/${editingEmployee._id}`
+        : '/api/users';
+      const method = editingEmployee ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'An error occurred');
+        setLoading(false);
+        return;
+      }
+
+      if (editingEmployee) {
+        setEmployees(
+          employees.map((emp) => (emp._id === editingEmployee._id ? data.user : emp))
+        );
+        toast.success('Employee updated successfully');
+      } else {
+        setEmployees([...employees, data.user]);
+        toast.success('Employee added successfully');
+      }
+
+      handleCloseModal();
+      setLoading(false);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (employee: Employee) => {
+    setDeleteModal({ isOpen: true, employee });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.employee) return;
+
+    const id = deleteModal.employee._id;
+    setDeleting(true);
+
+    // Optimistic update - remove immediately from UI
+    const previousEmployees = [...employees];
+    setEmployees(employees.filter((emp) => emp._id !== id));
+    toast.success('Employee deleted successfully');
+
+    try {
+      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+
+      if (!res.ok) {
+        // Revert on error
+        setEmployees(previousEmployees);
+        toast.error('Failed to delete employee');
+        setDeleting(false);
+        setDeleteModal({ isOpen: false, employee: null });
+        return;
+      }
+      setDeleting(false);
+      setDeleteModal({ isOpen: false, employee: null });
+    } catch (err) {
+      // Revert on error
+      setEmployees(previousEmployees);
+      toast.error('An error occurred');
+      setDeleting(false);
+      setDeleteModal({ isOpen: false, employee: null });
+    }
+  };
+
+  return (
+    <div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-primary font-semibold text-gray-800">All Employees</h2>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="font-secondary">Add Employee</span>
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
+                  Name
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
+                  Email
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
+                  Role
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
+                  Status
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {employees.map((employee) => (
+                <motion.tr
+                  key={employee._id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="hover:bg-gray-50"
+                >
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar
+                        name={employee.name}
+                        image={employee.profileImage}
+                        size="md"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 font-secondary">{employee.name}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 font-secondary">{employee.email}</div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-blue-100 text-blue-800 capitalize font-secondary">
+                      {employee.role}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span
+                      className={`px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full font-secondary ${
+                        employee.emailVerified
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {employee.emailVerified ? 'Verified' : 'Pending'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenModal(employee)}
+                        className="text-primary hover:text-primary-dark p-1 rounded hover:bg-primary-50"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(employee)}
+                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-lg shadow-xl p-5 w-full max-w-md"
+          >
+            <h2 className="text-xl font-primary font-bold text-gray-800 mb-4">
+              {editingEmployee ? 'Edit Employee' : 'Add Employee'}
+            </h2>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={!!editingEmployee}
+                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none disabled:bg-gray-100 disabled:text-gray-500 font-secondary bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">Role</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) =>
+                    setFormData({ ...formData, role: e.target.value as any })
+                  }
+                  required
+                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
+                >
+                  <option value="employee">Employee</option>
+                  <option value="hr">HR</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 font-secondary flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <LoadingDots size="sm" color="white" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    editingEmployee ? 'Update' : 'Add'
+                  )}
+                </button>
+              </div>
+            </form>
+        </motion.div>
+      </div>
+    )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, employee: null })}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Employee"
+        message="Are you sure you want to delete this employee?"
+        details={
+          deleteModal.employee ? (
+            <div className="space-y-1">
+              <div>
+                <span className="font-semibold">Name:</span> {deleteModal.employee.name}
+              </div>
+              <div>
+                <span className="font-semibold">Email:</span> {deleteModal.employee.email}
+              </div>
+              <div>
+                <span className="font-semibold">Role:</span> {deleteModal.employee.role}
+              </div>
+            </div>
+          ) : null
+        }
+        loading={deleting}
+      />
+    </div>
+  );
+}
+

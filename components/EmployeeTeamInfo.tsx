@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Mail, Phone, Crown } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
@@ -28,11 +28,7 @@ export default function EmployeeTeamInfo() {
   const [loading, setLoading] = useState(true);
   const toast = useToast();
 
-  useEffect(() => {
-    fetchMyTeams();
-  }, []);
-
-  const fetchMyTeams = async () => {
+  const fetchMyTeams = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/teams/my-team');
@@ -48,7 +44,11 @@ export default function EmployeeTeamInfo() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchMyTeams();
+  }, [fetchMyTeams]);
 
   if (loading) {
     return (

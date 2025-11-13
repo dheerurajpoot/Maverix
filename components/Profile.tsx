@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { User, Mail, Phone, Camera, Lock, Save, X } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
@@ -32,11 +32,7 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/profile');
@@ -60,7 +56,11 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -331,7 +331,7 @@ export default function Profile() {
               Change Password
             </h3>
             <p className="text-xs text-gray-500 mb-3 font-secondary">
-              Leave blank if you don't want to change your password
+              Leave blank if you don&apos;t want to change your password
             </p>
 
             <div className="space-y-3">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Users, UserCheck, Search, X } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
@@ -57,12 +57,7 @@ export default function TeamManagement() {
   });
   const toast = useToast();
 
-  useEffect(() => {
-    fetchTeams();
-    fetchEmployees();
-  }, []);
-
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     try {
       const res = await fetch('/api/teams');
       const data = await res.json();
@@ -74,9 +69,9 @@ export default function TeamManagement() {
     } catch (err: any) {
       toast.error('An error occurred');
     }
-  };
+  }, [toast]);
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       const res = await fetch('/api/users');
       const data = await res.json();
@@ -86,7 +81,12 @@ export default function TeamManagement() {
     } catch (err: any) {
       console.error('Failed to fetch employees:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTeams();
+    fetchEmployees();
+  }, [fetchTeams, fetchEmployees]);
 
   const handleOpenModal = (team?: Team) => {
     if (team) {

@@ -57,7 +57,7 @@ export default function SignupPage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Check Your Email</h2>
           <p className="text-gray-600 mb-6">
-            We've sent a verification link to <strong>{email}</strong>. Please click the link to set your password and complete your registration.
+            We&apos;ve sent a verification link to <strong>{email}</strong>. Please click the link to set your password and complete your registration.
           </p>
           <Link
             href="/login"

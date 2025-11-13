@@ -12,6 +12,12 @@ const openSans = Open_Sans({
 export const metadata: Metadata = {
   title: "MM HRM - Human Resources Management",
   description: "Modern HR Management System",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({

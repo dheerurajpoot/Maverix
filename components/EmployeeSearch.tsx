@@ -65,14 +65,14 @@ export default function EmployeeSearch() {
     <div className="relative" ref={searchRef}>
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <Search className="absolute left-4 top-1/2 z-10 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
         <input
           type="text"
-          placeholder="Search employees by name, email, or mobile..."
+          placeholder="Search employees..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => searchTerm.trim().length >= 2 && setShowResults(true)}
-          className="w-full pl-12 pr-10 py-3 text-sm text-gray-700 bg-white/90 backdrop-blur-sm border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none font-secondary shadow-sm"
+          className="w-full pl-12 pr-10 py-2 text-sm text-gray-700 bg-white/90 backdrop-blur-sm border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-1 transition-all outline-none font-secondary shadow-sm"
         />
         {searchTerm && (
           <button

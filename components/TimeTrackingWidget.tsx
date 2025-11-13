@@ -29,10 +29,10 @@ export default function TimeTrackingWidget() {
     // Set mounted flag and initial time on client side only
     setMounted(true);
     setCurrentTime(new Date());
-    
+
     checkClockStatus();
     fetchRecentAttendance();
-    
+
     // Update current time every second
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
@@ -77,14 +77,14 @@ export default function TimeTrackingWidget() {
       if (res.ok && data.attendance) {
         // Handle both array and single object responses
         let attendanceArray: AttendanceRecord[] = [];
-        
+
         if (Array.isArray(data.attendance)) {
           attendanceArray = data.attendance;
         } else if (data.attendance && typeof data.attendance === 'object') {
           // Single attendance object - convert to array
           attendanceArray = [data.attendance];
         }
-        
+
         // Sort by clockIn time (most recent first) and take top 3
         const sorted = attendanceArray
           .sort((a: AttendanceRecord, b: AttendanceRecord) => {
@@ -93,7 +93,7 @@ export default function TimeTrackingWidget() {
             return timeB - timeA;
           })
           .slice(0, 3);
-        
+
         setRecentAttendance(sorted);
       }
     } catch (err) {
@@ -181,7 +181,7 @@ export default function TimeTrackingWidget() {
               <Clock className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-lg font-primary font-bold">Time Tracking</h2>
+              <h2 className="text-lg font-primary font-bold">Start Your Day</h2>
               {clockedIn && (
                 <div className="flex items-center gap-1 mt-0.5">
                   <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></div>
@@ -193,11 +193,10 @@ export default function TimeTrackingWidget() {
           <button
             onClick={handleClockInOut}
             disabled={loading}
-            className={`px-4 py-2 rounded-lg font-semibold text-xs transition-all shadow-lg backdrop-blur-md border flex items-center gap-1.5 ${
-              clockedIn
+            className={`px-4 py-2 rounded-lg font-semibold text-xs transition-all shadow-lg backdrop-blur-md border flex items-center gap-1.5 ${clockedIn
                 ? 'bg-red-500/90 hover:bg-red-600 text-white border-red-400/50'
                 : 'bg-white/95 hover:bg-white text-primary border-white/50'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {loading ? (
               <LoadingDots size="sm" color={clockedIn ? 'white' : 'primary'} />
@@ -221,7 +220,7 @@ export default function TimeTrackingWidget() {
               Clocked in at <span className="font-semibold">{formatTime(clockInTime)}</span>
             </p>
           ) : (
-            <p className="text-xs font-secondary text-white/90">Ready to clock in</p>
+            <p className="text-xs font-secondary text-white/90">Have a great day!</p>
           )}
         </div>
 
@@ -265,20 +264,20 @@ export default function TimeTrackingWidget() {
                 className="bg-white/10 backdrop-blur-sm rounded-lg p-2.5 border border-white/15 hover:bg-white/15 hover:border-white/25 transition-all cursor-pointer"
               >
                 <div className="flex items-start gap-2">
-                  <div className="p-1 bg-green-500/30 rounded-md flex-shrink-0 mt-0.5">
+                  <div className="p-1 bg-green-500/30 rounded-md flex-shrink-0">
                     <CheckCircle className="w-3 h-3 text-green-200" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-white font-primary mb-0.5">
+                  <div className="flex w-full gap-2 items-center">
+                    <p className="text-xs font-semibold text-white font-primary">
                       {formatDate(record.date)}
                     </p>
-                    <p className="text-[10px] text-white/70 font-secondary mb-1.5">Work Session</p>
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] text-white/90 font-secondary font-medium">
+                    <p className="text-xs text-white/70 font-secondary">Work Session</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-white/90 font-secondary font-medium">
                         {formatTime(record.clockIn)} {record.clockOut ? `- ${formatTime(record.clockOut)}` : <span className="text-yellow-300">(Active)</span>}
                       </p>
                       {record.clockOut && (
-                        <p className="text-[10px] text-white/60 font-secondary">
+                        <p className="text-xs text-white/60 font-secondary">
                           Total: {calculateDuration(record.clockIn, record.clockOut)}
                         </p>
                       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import EmployeeTeamInfo from '@/components/EmployeeTeamInfo';
 import EmployeeSearch from '@/components/EmployeeSearch';
@@ -24,7 +24,7 @@ export default function EmployeeDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       const [leavesRes, leaveTypesRes, teamsRes, weeklyHoursRes, attendanceRes] = await Promise.all([
@@ -58,11 +58,17 @@ export default function EmployeeDashboard() {
       });
     } catch (err) {
       console.error('Error fetching stats:', err);
+      toast.error('Failed to load dashboard stats');
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
+  useEffect(() => {
+    if (session) {
+      fetchStats();
+    }
+  }, [session, fetchStats]);
 
   return (
     <DashboardLayout role="employee">

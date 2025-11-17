@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     const finances = await Finance.find(query)
-      .populate('userId', 'name email profileImage')
+      .populate('userId', 'name email profileImage bankName accountNumber ifscCode')
       .sort({ year: -1, month: -1 })
       .lean();
 
@@ -55,9 +55,6 @@ export async function POST(request: NextRequest) {
       month,
       year,
       baseSalary,
-      allowances,
-      deductions,
-      bonus,
     } = await request.json();
 
     if (!userId || !month || !year || !baseSalary) {
@@ -69,26 +66,20 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    const totalSalary =
-      (baseSalary || 0) +
-      (allowances || 0) +
-      (bonus || 0) -
-      (deductions || 0);
-
     const finance = new Finance({
       userId,
       month: parseInt(month),
       year: parseInt(year),
       baseSalary: parseFloat(baseSalary),
-      allowances: parseFloat(allowances || 0),
-      deductions: parseFloat(deductions || 0),
-      bonus: parseFloat(bonus || 0),
-      totalSalary,
-      status: 'pending',
+      allowances: 0,
+      deductions: 0,
+      bonus: 0,
+      totalSalary: parseFloat(baseSalary),
+      status: 'paid',
     });
 
     await finance.save();
-    await finance.populate('userId', 'name email profileImage');
+    await finance.populate('userId', 'name email profileImage bankName accountNumber ifscCode');
 
     return NextResponse.json({
       message: 'Finance record created successfully',

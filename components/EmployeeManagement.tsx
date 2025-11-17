@@ -13,6 +13,7 @@ interface Employee {
   name: string;
   email: string;
   role: 'admin' | 'hr' | 'employee';
+  designation?: string;
   emailVerified: boolean;
   profileImage?: string;
 }
@@ -29,6 +30,7 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
     name: '',
     email: '',
     role: 'employee' as 'admin' | 'hr' | 'employee',
+    designation: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -46,10 +48,11 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
         name: employee.name,
         email: employee.email,
         role: employee.role,
+        designation: employee.designation || '',
       });
     } else {
       setEditingEmployee(null);
-      setFormData({ name: '', email: '', role: 'employee' });
+      setFormData({ name: '', email: '', role: 'employee', designation: '' });
     }
     setShowModal(true);
     setError('');
@@ -58,7 +61,7 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingEmployee(null);
-    setFormData({ name: '', email: '', role: 'employee' });
+    setFormData({ name: '', email: '', role: 'employee', designation: '' });
     setError('');
   };
 
@@ -170,6 +173,9 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
                   Role
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
+                  Designation
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
                   Status
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
@@ -204,6 +210,11 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
                     <span className="px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-blue-100 text-blue-800 capitalize font-secondary">
                       {employee.role}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 font-secondary">
+                      {employee.designation || <span className="text-gray-400 italic">Not set</span>}
+                    </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span
@@ -296,6 +307,17 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">Designation</label>
+                <input
+                  type="text"
+                  value={formData.designation}
+                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                  placeholder="e.g., Software Engineer, HR Manager, etc."
+                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
+                />
+              </div>
+
               <div className="flex gap-2 pt-3">
                 <button
                   type="button"
@@ -343,6 +365,11 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
               <div>
                 <span className="font-semibold">Role:</span> {deleteModal.employee.role}
               </div>
+              {deleteModal.employee.designation && (
+                <div>
+                  <span className="font-semibold">Designation:</span> {deleteModal.employee.designation}
+                </div>
+              )}
             </div>
           ) : null
         }

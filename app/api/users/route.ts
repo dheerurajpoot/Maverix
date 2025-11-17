@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const users = await User.find({ role: 'employee' })
-      .select('_id name email role profileImage mobileNumber')
+      .select('_id name email role designation profileImage mobileNumber emailVerified')
       .lean();
 
     return NextResponse.json({ users });
@@ -42,11 +42,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if ((session.user as any).role !== 'admin') {
+    const userRole = (session.user as any).role;
+    if (userRole !== 'admin' && userRole !== 'hr') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { email, name, role } = await request.json();
+    const { email, name, role, designation } = await request.json();
 
     if (!email || !name || !role) {
       return NextResponse.json(
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       email: email.toLowerCase(),
       name,
       role,
+      designation: designation || undefined,
       verificationToken,
       verificationTokenExpiry,
       emailVerified: false,
@@ -86,6 +88,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        designation: user.designation,
         emailVerified: user.emailVerified,
       },
     });

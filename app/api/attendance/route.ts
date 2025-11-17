@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { action } = await request.json();
+    const { action, autoClockOut } = await request.json();
     const userId = (session.user as any).id;
 
     if (!action || (action !== 'clockIn' && action !== 'clockOut')) {
@@ -124,7 +124,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No active clock in found. Please clock in first.' }, { status: 400 });
       }
 
-      const clockOutTime = new Date();
+      // If autoClockOut is true, set clock-out time to exactly 11:11 PM on the same day as clock-in
+      let clockOutTime: Date;
+      if (autoClockOut) {
+        // Set to 11:11 PM on the same date as clock-in
+        clockOutTime = new Date(attendance.clockIn);
+        clockOutTime.setHours(23, 11, 0, 0); // Set to 11:11 PM
+      } else {
+        clockOutTime = new Date();
+      }
+
       attendance.clockOut = clockOutTime;
 
       const hoursWorked =

@@ -5,6 +5,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'admin' | 'hr' | 'employee';
+  designation?: string;
   profileImage?: string;
   mobileNumber?: string;
   dateOfBirth?: Date;
@@ -13,6 +14,9 @@ export interface IUser extends Document {
   verificationTokenExpiry?: Date;
   resetPasswordToken?: string;
   resetPasswordTokenExpiry?: Date;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +44,10 @@ const UserSchema: Schema = new Schema(
       enum: ['admin', 'hr', 'employee'],
       default: 'employee',
     },
+    designation: {
+      type: String,
+      trim: true,
+    },
     profileImage: {
       type: String,
     },
@@ -65,6 +73,19 @@ const UserSchema: Schema = new Schema(
     },
     resetPasswordTokenExpiry: {
       type: Date,
+    },
+    bankName: {
+      type: String,
+      trim: true,
+    },
+    accountNumber: {
+      type: String,
+      trim: true,
+    },
+    ifscCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
     },
   },
   {

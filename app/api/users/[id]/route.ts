@@ -17,11 +17,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if ((session.user as any).role !== 'admin') {
+    const userRole = (session.user as any).role;
+    if (userRole !== 'admin' && userRole !== 'hr') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, role } = await request.json();
+    const { name, role, designation } = await request.json();
 
     await connectDB();
 
@@ -33,18 +34,18 @@ export async function PUT(
 
     if (name) user.name = name;
     if (role) user.role = role;
+    if (designation !== undefined) {
+      user.designation = designation && designation.trim() !== '' ? designation.trim() : undefined;
+    }
 
     await user.save();
+    
+    // Reload user to ensure all fields are properly saved
+    const updatedUser = await User.findById(params.id).select('-password').lean();
 
     return NextResponse.json({
       message: 'User updated successfully',
-      user: {
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        emailVerified: user.emailVerified,
-      },
+      user: updatedUser,
     });
   } catch (error: any) {
     console.error('Update user error:', error);

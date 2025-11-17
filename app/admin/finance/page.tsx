@@ -16,22 +16,19 @@ export default async function AdminFinancePage() {
 
   await connectDB();
   const finances = await Finance.find()
-    .populate('userId', 'name email')
+    .populate('userId', 'name email profileImage bankName accountNumber ifscCode')
     .sort({ year: -1, month: -1 })
     .lean();
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-primary font-bold text-gray-800">Finance Management</h1>
-          <p className="text-sm text-gray-600 mt-0.5 font-secondary">Manage payroll and employee finances</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="space-y-6 p-4 md:p-6">
+          <FinanceManagement
+            initialFinances={JSON.parse(JSON.stringify(finances))}
+            canEdit={true}
+          />
         </div>
-
-        <FinanceManagement
-          initialFinances={JSON.parse(JSON.stringify(finances))}
-          canEdit={true}
-        />
       </div>
     </DashboardLayout>
   );

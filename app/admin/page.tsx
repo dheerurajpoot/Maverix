@@ -1,6 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Users, Calendar, DollarSign, Clock, UserCog } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -36,7 +37,8 @@ interface RecentTeam {
 }
 
 export default function AdminDashboard() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [stats, setStats] = useState({
     totalEmployees: 0,
     pendingLeaves: 0,
@@ -47,17 +49,45 @@ export default function AdminDashboard() {
   const [recentTeams, setRecentTeams] = useState<RecentTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
 
+  // Verify admin role
   useEffect(() => {
-    fetchStats();
-    fetchRecentTeams();
+    if (status === 'loading') return;
     
-    // Auto-refresh teams every 5 seconds
-    const interval = setInterval(() => {
-      fetchRecentTeams();
-    }, 5000);
+    if (status === 'unauthenticated') {
+      router.push('/login');
+      return;
+    }
 
-    return () => clearInterval(interval);
-  }, []);
+    if (session) {
+      const userRole = (session.user as any)?.role;
+      if (userRole !== 'admin') {
+        // Redirect to correct dashboard
+        if (userRole === 'hr') {
+          router.push('/hr');
+        } else if (userRole === 'employee') {
+          router.push('/employee');
+        } else {
+          router.push('/login');
+        }
+        return;
+      }
+    }
+  }, [session, status, router]);
+
+  useEffect(() => {
+    // Only fetch data if user is authenticated and is admin
+    if (status === 'authenticated' && session && (session.user as any)?.role === 'admin') {
+      fetchStats();
+      fetchRecentTeams();
+      
+      // Auto-refresh teams every 5 seconds
+      const interval = setInterval(() => {
+        fetchRecentTeams();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [session, status]);
 
   const fetchStats = async () => {
     try {
@@ -118,6 +148,23 @@ export default function AdminDashboard() {
       gradient: 'from-purple-500 to-purple-600',
     },
   ];
+
+  // Show loading state while session is loading or role doesn't match
+  if (status === 'loading' || (session && (session.user as any)?.role !== 'admin')) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingDots size="lg" />
+          <p className="mt-4 text-gray-600 font-secondary">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (redirect will happen in useEffect)
+  if (status === 'unauthenticated' || !session) {
+    return null;
+  }
 
   return (
     <DashboardLayout role="admin">

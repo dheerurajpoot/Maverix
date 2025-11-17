@@ -34,17 +34,17 @@ function ToastItem({ toast, onClose }: ToastProps) {
   };
 
   const colors = {
-    success: 'bg-green-50 border-green-200 text-green-800',
-    error: 'bg-red-50 border-red-200 text-red-800',
-    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-    info: 'bg-blue-50 border-blue-200 text-blue-800',
+    success: 'bg-green-700/70 backdrop-blur-lg text-white',
+    error: 'bg-red-700/70 backdrop-blur-lg text-white',
+    warning: 'bg-yellow-700/70 backdrop-blur-lg text-white',
+    info: 'bg-blue-700/70 backdrop-blur-lg text-white',
   };
 
   const iconColors = {
-    success: 'text-green-600',
-    error: 'text-red-600',
-    warning: 'text-yellow-600',
-    info: 'text-blue-600',
+    success: 'text-green-300',
+    error: 'text-red-300',
+    warning: 'text-yellow-300',
+    info: 'text-blue-300',
   };
 
   const Icon = icons[toast.type];

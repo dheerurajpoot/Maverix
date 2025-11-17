@@ -40,6 +40,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* width */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+ 
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: var(--primary); 
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-light); 
+}
+
 /* Remove all shadows from the entire website */
 *,
 *::before,
@@ -88,6 +108,14 @@ p, span, div, a, button, input, textarea, select, label,
     position: relative;
     z-index: 1;
   }
+}
+
+/* Dashboard Header Image */
+.dashboard-header-image {
+  background-image: url('https://i.pinimg.com/736x/08/54/92/085492bcb4bdc61c538666dfa156782c.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* Ensure form elements have proper text colors */

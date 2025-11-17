@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, LogIn, LogOut, CheckCircle, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
@@ -24,30 +24,7 @@ export default function TimeTrackingWidget() {
   const [recentAttendance, setRecentAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(true);
-
-  useEffect(() => {
-    // Set mounted flag and initial time on client side only
-    setMounted(true);
-    setCurrentTime(new Date());
-
-    checkClockStatus();
-    fetchRecentAttendance();
-
-    // Update current time every second
-    const timeInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    // Check clock status every 30 seconds
-    const statusInterval = setInterval(() => {
-      checkClockStatus();
-    }, 30000);
-
-    return () => {
-      clearInterval(timeInterval);
-      clearInterval(statusInterval);
-    };
-  }, []);
+  const [autoClockOutScheduled, setAutoClockOutScheduled] = useState(false);
 
   const checkClockStatus = async () => {
     try {
@@ -62,6 +39,7 @@ export default function TimeTrackingWidget() {
       } else {
         setClockedIn(false);
         setClockInTime(null);
+        setAutoClockOutScheduled(false);
       }
     } catch (err) {
       console.error('Error checking clock status:', err);
@@ -102,6 +80,132 @@ export default function TimeTrackingWidget() {
       setAttendanceLoading(false);
     }
   };
+
+  const checkAutoClockOut = useCallback(async () => {
+    if (!clockedIn) return;
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // If it's 11:00 PM (23:00) or later
+    if (currentHour === 23) {
+      // If it's after 11:11 PM, immediately clock out
+      if (currentMinute >= 11) {
+        try {
+          // Double-check that employee is still clocked in
+          const today = new Date().toISOString().split('T')[0];
+          const res = await fetch(`/api/attendance?date=${today}`);
+          const data = await res.json();
+
+          if (data.attendance && data.attendance.clockIn && !data.attendance.clockOut) {
+            // Perform automatic clock-out immediately
+            const clockOutRes = await fetch('/api/attendance', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'clockOut', autoClockOut: true }),
+            });
+
+            if (clockOutRes.ok) {
+              setClockedIn(false);
+              setClockInTime(null);
+              setAutoClockOutScheduled(false);
+              toast.success('Automatically clocked out at 11:11 PM');
+              fetchRecentAttendance();
+              checkClockStatus();
+            }
+          }
+        } catch (err) {
+          console.error('Error during automatic clock-out:', err);
+        }
+      } 
+      // If it's between 11:00 PM and 11:11 PM, schedule clock-out for 11:11 PM
+      else if (currentMinute >= 0 && currentMinute < 11 && !autoClockOutScheduled) {
+        setAutoClockOutScheduled(true);
+        
+        // Calculate milliseconds until 11:11 PM
+        const targetTime = new Date(now);
+        targetTime.setHours(23, 11, 0, 0);
+        const delayMs = targetTime.getTime() - now.getTime();
+
+        if (delayMs > 0) {
+          setTimeout(async () => {
+            try {
+              // Double-check that employee is still clocked in
+              const today = new Date().toISOString().split('T')[0];
+              const res = await fetch(`/api/attendance?date=${today}`);
+              const data = await res.json();
+
+              if (data.attendance && data.attendance.clockIn && !data.attendance.clockOut) {
+                // Perform automatic clock-out
+                const clockOutRes = await fetch('/api/attendance', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'clockOut', autoClockOut: true }),
+                });
+
+                if (clockOutRes.ok) {
+                  setClockedIn(false);
+                  setClockInTime(null);
+                  setAutoClockOutScheduled(false);
+                  toast.success('Automatically clocked out at 11:11 PM');
+                  fetchRecentAttendance();
+                  checkClockStatus();
+                }
+              } else {
+                setAutoClockOutScheduled(false);
+              }
+            } catch (err) {
+              console.error('Error during automatic clock-out:', err);
+              setAutoClockOutScheduled(false);
+            }
+          }, delayMs);
+        }
+      }
+    }
+  }, [clockedIn, autoClockOutScheduled, toast]);
+
+  useEffect(() => {
+    // Set mounted flag and initial time on client side only
+    setMounted(true);
+    setCurrentTime(new Date());
+
+    checkClockStatus();
+    fetchRecentAttendance();
+
+    // Update current time every second
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    // Check clock status every 30 seconds
+    const statusInterval = setInterval(() => {
+      checkClockStatus();
+    }, 30000);
+
+    // Check for automatic clock-out every minute
+    const autoClockOutInterval = setInterval(() => {
+      checkAutoClockOut();
+    }, 60000); // Check every minute
+
+    // Initial check for auto clock-out
+    checkAutoClockOut();
+
+    return () => {
+      clearInterval(timeInterval);
+      clearInterval(statusInterval);
+      clearInterval(autoClockOutInterval);
+    };
+  }, [checkAutoClockOut]);
+
+  // Also check when clockedIn status changes
+  useEffect(() => {
+    if (clockedIn) {
+      checkAutoClockOut();
+    } else {
+      setAutoClockOutScheduled(false);
+    }
+  }, [clockedIn, checkAutoClockOut]);
 
   const handleClockInOut = async () => {
     try {

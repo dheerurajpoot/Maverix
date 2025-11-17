@@ -38,7 +38,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, mobileNumber, dateOfBirth, profileImage, currentPassword, newPassword } = await request.json();
+    const { name, mobileNumber, dateOfBirth, profileImage, currentPassword, newPassword, bankName, accountNumber, ifscCode } = await request.json();
 
     await connectDB();
 
@@ -88,6 +88,17 @@ export async function PUT(request: NextRequest) {
     // Update profile image
     if (profileImage !== undefined) {
       updateFields.profileImage = profileImage;
+    }
+
+    // Update bank details
+    if (bankName !== undefined) {
+      updateFields.bankName = bankName || null;
+    }
+    if (accountNumber !== undefined) {
+      updateFields.accountNumber = accountNumber || null;
+    }
+    if (ifscCode !== undefined) {
+      updateFields.ifscCode = ifscCode ? ifscCode.toUpperCase().trim() : null;
     }
 
     // Update password if provided

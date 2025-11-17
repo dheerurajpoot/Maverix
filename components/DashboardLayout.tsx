@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Logo from './Logo';
 import UserAvatar from './UserAvatar';
+import LoadingDots from './LoadingDots';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -29,10 +30,37 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children, role }: DashboardLayoutProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Verify that the user's role matches the expected role
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading session
+    
+    if (status === 'unauthenticated') {
+      router.push('/login');
+      return;
+    }
+
+    if (session) {
+      const userRole = (session.user as any)?.role;
+      
+      // If role doesn't match, redirect to the correct dashboard
+      if (userRole !== role) {
+        if (userRole === 'admin') {
+          router.push('/admin');
+        } else if (userRole === 'hr') {
+          router.push('/hr');
+        } else if (userRole === 'employee') {
+          router.push('/employee');
+        } else {
+          router.push('/login');
+        }
+      }
+    }
+  }, [session, status, role, router]);
 
   const adminMenu = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -81,6 +109,24 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
   const userImage = (session?.user as any)?.image || (session?.user as any)?.profileImage;
   const userName = session?.user?.name;
+  const userRole = (session?.user as any)?.role;
+
+  // Show loading state while session is loading or role doesn't match
+  if (status === 'loading' || (session && userRole !== role)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingDots size="lg" />
+          <p className="mt-4 text-gray-600 font-secondary">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, don't render (redirect will happen in useEffect)
+  if (status === 'unauthenticated' || !session) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

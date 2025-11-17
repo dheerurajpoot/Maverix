@@ -24,6 +24,7 @@ export default function EmployeeDashboard() {
     attendanceThisMonth: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -65,9 +66,22 @@ export default function EmployeeDashboard() {
     }
   }, [toast]);
 
+  const fetchUserProfile = async () => {
+    try {
+      const res = await fetch('/api/profile');
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setUserProfile(data.user);
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
+
   useEffect(() => {
     if (session) {
       fetchStats();
+      fetchUserProfile();
     }
   }, [session, fetchStats]);
 
@@ -76,7 +90,7 @@ export default function EmployeeDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="space-y-6 p-4 md:p-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 dashboard-header-image p-3 rounded-lg">
             <div>
               <div className="flex items-center gap-2">
                 <UserAvatar
@@ -84,7 +98,19 @@ export default function EmployeeDashboard() {
                   image={(session?.user as any)?.profileImage}
                   size="lg"
                 />
-                <h3 className="text-2xl font-primary font-bold text-gray-800">Welcome {session?.user?.name}</h3>
+                <div>
+                  <h3 className="text-2xl font-primary font-bold text-gray-800">Welcome {session?.user?.name}</h3>
+                  {userProfile?.designation ? (
+                    <p className="text-sm font-bold text-primary mt-1 font-secondary">
+                      {userProfile.designation}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-1 font-secondary italic">
+                      No designation assigned
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-600 mt-0.5 font-secondary">{session?.user?.email}</p>
+                </div>
               </div>
 
             </div>

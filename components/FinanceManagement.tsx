@@ -1,8 +1,26 @@
 'use client';
 
-import { DollarSign, FileText } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DollarSign,
+  Plus,
+  Calendar,
+  TrendingUp,
+  X,
+  Search,
+  User,
+  Check,
+  ChevronDown,
+  FileText,
+  Wallet,
+  CreditCard,
+  Building2,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import UserAvatar from './UserAvatar';
+import { useToast } from '@/contexts/ToastContext';
+import LoadingDots from './LoadingDots';
 
 interface Finance {
   _id: string;
@@ -10,16 +28,22 @@ interface Finance {
     _id: string;
     name: string;
     email: string;
+    profileImage?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
   };
   month: number;
   year: number;
   baseSalary: number;
-  allowances: number;
-  deductions: number;
-  bonus?: number;
   totalSalary: number;
-  status: 'pending' | 'paid';
-  paidAt?: string;
+}
+
+interface Employee {
+  _id: string;
+  name: string;
+  email: string;
+  profileImage?: string;
 }
 
 interface FinanceManagementProps {
@@ -31,112 +55,522 @@ export default function FinanceManagement({
   initialFinances,
   canEdit,
 }: FinanceManagementProps) {
+  const [finances, setFinances] = useState<Finance[]>(initialFinances);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
+  const employeeDropdownRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
+
+  const [formData, setFormData] = useState({
+    userId: '',
+    baseSalary: '',
+  });
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      if (res.ok) {
+        setEmployees(data.users || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch employees:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (canEdit) {
+      fetchEmployees();
+    }
+  }, [canEdit, fetchEmployees]);
+
+  // Close employee dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        employeeDropdownRef.current &&
+        !employeeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setEmployeeDropdownOpen(false);
+      }
+    };
+
+    if (employeeDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [employeeDropdownOpen]);
+
   const getMonthName = (month: number) => {
     return format(new Date(2000, month - 1, 1), 'MMMM');
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
+  const handleOpenModal = () => {
+    setFormData({
+      userId: '',
+      baseSalary: '',
+    });
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEmployeeDropdownOpen(false);
+    setEmployeeSearchTerm('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const currentDate = new Date();
+      const res = await fetch('/api/finance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: formData.userId,
+          month: currentDate.getMonth() + 1,
+          year: currentDate.getFullYear(),
+          baseSalary: parseFloat(formData.baseSalary),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to allocate salary');
+        setLoading(false);
+        return;
+      }
+
+      toast.success('Salary allocated successfully');
+      handleCloseModal();
+      
+      // Refresh finances
+      const refreshRes = await fetch('/api/finance');
+      const refreshData = await refreshRes.json();
+      if (refreshRes.ok) {
+        setFinances(refreshData.finances || []);
+      }
+      setLoading(false);
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred');
+      setLoading(false);
+    }
+  };
+
+  const selectedEmployee = employees.find((emp) => emp._id === formData.userId);
+  const filteredEmployees = employees.filter(
+    (emp) =>
+      emp.name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+      emp.email.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+  );
+
+  const filteredFinances = finances.filter((finance) => {
+    if (!canEdit) return true; // Employee view shows all their finances
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      finance.userId.name.toLowerCase().includes(searchLower) ||
+      finance.userId.email.toLowerCase().includes(searchLower) ||
+      getMonthName(finance.month).toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Calculate stats
+  const totalSalary = filteredFinances.reduce((sum, f) => sum + f.totalSalary, 0);
+  const totalEmployees = filteredFinances.length;
+  const averageSalary = totalEmployees > 0 ? totalSalary / totalEmployees : 0;
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              {initialFinances[0]?.userId && (
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                  Employee
-                </th>
-              )}
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Period
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Base Salary
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Allowances
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Deductions
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Bonus
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Total
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {initialFinances.map((finance) => (
-              <tr key={finance._id} className="hover:bg-gray-50">
-                {finance.userId && (
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <UserAvatar
-                        name={finance.userId.name}
-                        image={(finance.userId as any)?.profileImage}
-                        size="md"
-                      />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 font-secondary">
-                          {finance.userId.name}
-                        </div>
-                        <div className="text-xs text-gray-500 font-secondary">{finance.userId.email}</div>
+    <>
+      <div className="space-y-4">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 font-secondary mb-1">Total Salary Allocated</p>
+                <p className="text-3xl font-primary font-bold text-gray-800">{formatCurrency(totalSalary)}</p>
+              </div>
+              <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl shadow-lg">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 font-secondary mb-1">Total Employees</p>
+                <p className="text-3xl font-primary font-bold text-gray-800">{totalEmployees}</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
+                <User className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 font-secondary mb-1">Average Salary</p>
+                <p className="text-3xl font-primary font-bold text-gray-800">{formatCurrency(averageSalary)}</p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-lg">
+                <TrendingUp className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Header with Search and Add Button */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-primary font-bold text-gray-800">
+                {canEdit ? 'Salary Management' : 'My Salary History'}
+              </h2>
+              <p className="text-xs text-gray-600 mt-1 font-secondary">
+                {canEdit
+                  ? 'Manage and allocate employee salaries'
+                  : 'View your salary information and payslips'}
+              </p>
+            </div>
+            {canEdit && (
+              <div className="flex gap-3">
+                <div className="relative flex-1 md:flex-initial">
+                  <Search className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search employees..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 text-sm border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm w-full md:w-64"
+                  />
+                </div>
+                <button
+                  onClick={handleOpenModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-secondary text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Allocate Salary
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Finance Records */}
+        {filteredFinances.length === 0 ? (
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-8 text-center">
+            <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600 font-secondary">
+              {searchTerm ? 'No records found' : 'No salary records yet'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {filteredFinances.map((finance, index) => (
+              <motion.div
+                key={finance._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5 hover:shadow-xl transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <UserAvatar
+                      name={finance.userId.name}
+                      image={finance.userId.profileImage}
+                      size="sm"
+                    />
+                    <div>
+                      <div className="font-semibold text-gray-900 font-primary text-sm">
+                        {finance.userId.name}
                       </div>
+                      {canEdit && (
+                        <div className="text-xs text-gray-500 font-secondary">{finance.userId.email}</div>
+                      )}
                     </div>
-                  </td>
-                )}
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-secondary">
-                    {getMonthName(finance.month)} {finance.year}
                   </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-secondary">{formatCurrency(finance.baseSalary)}</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-green-600 font-secondary">{formatCurrency(finance.allowances)}</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-red-600 font-secondary">{formatCurrency(finance.deductions)}</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-secondary">
-                    {finance.bonus ? formatCurrency(finance.bonus) : '-'}
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 font-secondary">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Monthly Salary
                   </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm font-primary font-semibold text-gray-900">
-                    {formatCurrency(finance.totalSalary)}
+                </div>
+
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-semibold text-gray-700 font-primary">Salary</span>
+                    <span className="text-xl font-bold text-primary font-primary">
+                      {formatCurrency(finance.baseSalary)}
+                    </span>
                   </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-0.5 text-xs font-medium rounded-full font-secondary ${
-                      finance.status === 'paid'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}
-                  >
-                    {finance.status}
-                  </span>
-                </td>
-              </tr>
+                  
+                  {/* Bank Details */}
+                  {canEdit && (
+                    <div className="mt-3 pt-3 bg-blue-300/10 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <CreditCard className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-xs font-semibold text-gray-600 font-primary">Bank Details</span>
+                      </div>
+                      {finance.userId.accountNumber ? (
+                        <div className="space-y-2">
+                          {finance.userId.bankName && (
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-gray-500 font-secondary">Bank:</span>
+                              <span className="font-medium text-gray-900 font-secondary">{finance.userId.bankName}</span>
+                            </div>
+                          )}
+                          {finance.userId.accountNumber && (
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-gray-500 font-secondary">Account:</span>
+                              <span className="font-medium text-gray-900 font-secondary">{finance.userId.accountNumber}</span>
+                            </div>
+                          )}
+                          {finance.userId.ifscCode && (
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-gray-500 font-secondary">IFSC:</span>
+                              <span className="font-medium text-gray-900 font-secondary">{finance.userId.ifscCode}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 font-secondary">
+                          No bank details added yet.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
+
+      {/* Allocate Salary Modal */}
+      {canEdit && (
+        <AnimatePresence>
+          {showModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-xl font-primary font-bold text-gray-800">
+                    Allocate Salary
+                  </h2>
+                  <button
+                    onClick={handleCloseModal}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Employee Selection */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
+                      Employee *
+                    </label>
+                    <div className="relative" ref={employeeDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmployeeDropdownOpen(!employeeDropdownOpen);
+                          setEmployeeSearchTerm('');
+                        }}
+                        className={`w-full px-3 py-2 text-sm text-left border rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm shadow-sm transition-all flex items-center justify-between ${
+                          formData.userId
+                            ? 'border-primary/30 text-gray-700'
+                            : 'border-gray-300/50 text-gray-500'
+                        }`}
+                      >
+                        {selectedEmployee ? (
+                          <div className="flex items-center gap-3">
+                            <UserAvatar
+                              name={selectedEmployee.name}
+                              image={selectedEmployee.profileImage}
+                              size="sm"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-gray-900 font-medium">{selectedEmployee.name}</span>
+                              <span className="text-xs text-gray-500">{selectedEmployee.email}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span>Select Employee</span>
+                        )}
+                        <ChevronDown
+                          className={`w-4 h-4 text-gray-400 transition-transform ${
+                            employeeDropdownOpen ? 'transform rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+
+                      <AnimatePresence>
+                        {employeeDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute z-50 w-full mt-2 bg-white/95 backdrop-blur-xl rounded-lg shadow-2xl border border-white/50 overflow-hidden"
+                          >
+                            <div className="p-2 border-b border-gray-200/50">
+                              <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                                <input
+                                  type="text"
+                                  value={employeeSearchTerm}
+                                  onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                                  placeholder="Search employees..."
+                                  className="w-full pl-9 pr-3 py-2 text-sm text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="max-h-60 overflow-y-auto">
+                              {filteredEmployees.length === 0 ? (
+                                <div className="p-3 text-center text-xs text-gray-500">
+                                  No employees found
+                                </div>
+                              ) : (
+                                filteredEmployees.map((emp) => (
+                                  <button
+                                    key={emp._id}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({ ...formData, userId: emp._id });
+                                      setEmployeeDropdownOpen(false);
+                                      setEmployeeSearchTerm('');
+                                    }}
+                                    className={`w-full px-3 py-2 flex items-center gap-2.5 hover:bg-primary/5 transition-colors ${
+                                      formData.userId === emp._id ? 'bg-primary/10' : ''
+                                    }`}
+                                  >
+                                    <UserAvatar
+                                      name={emp.name}
+                                      image={emp.profileImage}
+                                      size="sm"
+                                    />
+                                    <div className="flex-1 text-left">
+                                      <div className="text-sm font-medium text-gray-900">{emp.name}</div>
+                                      <div className="text-xs text-gray-500">{emp.email}</div>
+                                    </div>
+                                    {formData.userId === emp._id && (
+                                      <Check className="w-3.5 h-3.5 text-primary" />
+                                    )}
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                {/* Base Salary */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
+                    Salary (INR) *
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="number"
+                      step="1"
+                      value={formData.baseSalary}
+                      onChange={(e) => setFormData({ ...formData, baseSalary: e.target.value })}
+                      required
+                      placeholder="0"
+                      className="w-full pl-10 pr-3 py-2 text-sm text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Salary Preview */}
+                <div className="bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-lg p-3 border border-primary/20">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-gray-900 font-primary">
+                      Salary
+                    </span>
+                    <span className="text-xl font-bold text-primary font-primary">
+                      {formatCurrency(parseFloat(formData.baseSalary) || 0)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="flex-1 px-4 py-2 text-sm border border-gray-300/50 rounded-lg text-gray-700 hover:bg-gray-50/80 transition-all font-secondary backdrop-blur-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || !formData.userId}
+                    className="flex-1 px-4 py-2 text-sm bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 font-secondary flex items-center justify-center gap-2 backdrop-blur-sm"
+                  >
+                    {loading ? (
+                      <>
+                        <LoadingDots size="sm" color="white" />
+                        <span>Allocating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="w-3.5 h-3.5" />
+                        Allocate Salary
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+              </motion.div>
     </div>
+          )}
+        </AnimatePresence>
+      )}
+    </>
   );
 }
-

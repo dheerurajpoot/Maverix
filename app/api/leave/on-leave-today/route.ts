@@ -21,21 +21,29 @@ export async function GET(request: NextRequest) {
     const endOfToday = new Date(today);
     endOfToday.setHours(23, 59, 59, 999);
 
-    // Find all approved leaves that include today
+    // Find all approved leave REQUESTS (not allotted leaves) that include today
     // A leave includes today if: startDate <= today AND endDate >= today
-    // CRITICAL: Only include leaves with status exactly 'approved' (exclude 'pending' and 'rejected')
+    // CRITICAL: 
+    // 1. Only include leaves with status exactly 'approved' (exclude 'pending' and 'rejected')
+    // 2. Exclude allotted leaves (where allottedBy exists) - these are just balance allocations, not actual leave applications
     const leavesOnLeaveToday = await Leave.find({
       status: 'approved', // Only approved status
+      allottedBy: { $exists: false }, // Exclude allotted leaves - only actual leave requests
       startDate: { $lte: endOfToday },
       endDate: { $gte: today },
     })
-      .select('userId status startDate endDate') // Include fields for verification
+      .select('userId status startDate endDate allottedBy') // Include fields for verification
       .lean();
 
-    // Triple-check: filter out any non-approved leaves and verify dates
+    // Triple-check: filter out any non-approved leaves, allotted leaves, and verify dates
     const approvedLeavesOnly = leavesOnLeaveToday.filter((leave: any) => {
       // Ensure status is exactly 'approved' (string comparison)
       if (leave.status !== 'approved') {
+        return false;
+      }
+      
+      // Ensure this is NOT an allotted leave (allottedBy should not exist)
+      if (leave.allottedBy) {
         return false;
       }
       

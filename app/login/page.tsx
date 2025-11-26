@@ -35,11 +35,60 @@ function LoginForm() {
         return;
       }
 
-      // Get user role and approval status from session
-      const res = await fetch('/api/auth/session');
-      const session = await res.json();
+      // Wait a bit for the session to be established
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Get user role and approval status from session with retry logic
+      let session = null;
+      let retries = 3;
+      
+      while (retries > 0 && !session) {
+        try {
+          const res = await fetch('/api/auth/session', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            cache: 'no-store',
+          });
+
+          if (res.ok) {
+            session = await res.json();
+            break;
+          } else {
+            throw new Error(`Session fetch failed: ${res.status}`);
+          }
+        } catch (fetchError: any) {
+          retries--;
+          if (retries > 0) {
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 300));
+          } else {
+            console.error('Session fetch error after retries:', fetchError);
+            // Fallback: use NextAuth redirect mechanism
+            const from = searchParams.get('from') || '/';
+            window.location.href = from;
+            return;
+          }
+        }
+      }
+
+      if (!session || !session.user) {
+        // If we still don't have a session, redirect to home
+        const from = searchParams.get('from') || '/';
+        window.location.href = from;
+        return;
+      }
+
       const role = session?.user?.role;
       const approved = session?.user?.approved;
+
+      if (!role) {
+        // If role is not available, redirect to home
+        router.push('/');
+        router.refresh();
+        return;
+      }
 
       // Redirect employees to waiting page only if explicitly not approved (false)
       // If approved is undefined/null, treat as approved (for existing employees)
@@ -53,7 +102,8 @@ function LoginForm() {
       router.push(from);
       router.refresh();
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      console.error('Login error:', err);
+      setError(err.message || 'An error occurred during login. Please try again.');
       setLoading(false);
     }
   };

@@ -512,7 +512,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                   <div
                     onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
                     className="w-full px-3 py-2.5 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white cursor-pointer flex items-center justify-between"
-                  >
+                >
                     <span className={selectedEmployees.length === 0 ? 'text-gray-400' : ''}>
                       {selectedEmployees.length === 0
                         ? 'Select Employees'
@@ -602,29 +602,29 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                   {showLeaveTypeDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       <div className="p-2 border-b border-gray-200">
-                        <input
+                <input
                           type="text"
                           placeholder="Search leave types..."
                           value={searchLeaveType}
                           onChange={(e) => setSearchLeaveType(e.target.value)}
                           className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary outline-none"
                           onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
+                />
+              </div>
                       <div className="p-2 space-y-1">
                         {filteredLeaveTypes.map((lt) => (
                           <label
                             key={lt._id}
                             className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
                           >
-                            <input
-                              type="checkbox"
+                <input
+                  type="checkbox"
                               checked={selectedLeaveTypes.some((slt) => slt.leaveTypeId === lt._id)}
                               onChange={() => toggleLeaveType(lt)}
-                              className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                            />
+                  className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                />
                             <span className="text-sm text-gray-700 font-secondary">{lt.name}</span>
-                          </label>
+                </label>
                         ))}
                         {filteredLeaveTypes.length === 0 && (
                           <p className="text-sm text-gray-500 text-center py-2">No leave types found</p>
@@ -640,7 +640,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700 font-secondary">
                     Enter Days for Each Leave Type <span className="text-red-500">*</span>
-                  </label>
+                </label>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {selectedLeaveTypes.map((lt) => (
                       <motion.div
@@ -663,7 +663,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                             placeholder="Days"
                             required
                             className="w-24 px-2.5 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-                          />
+                />
                           <button
                             type="button"
                             onClick={() => removeLeaveType(lt.leaveTypeId)}
@@ -675,7 +675,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                       </motion.div>
                     ))}
                   </div>
-                </div>
+              </div>
               )}
 
               {/* Action Buttons */}

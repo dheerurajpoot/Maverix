@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [recentTeams, setRecentTeams] = useState<RecentTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Verify admin role
   useEffect(() => {
@@ -77,10 +78,31 @@ export default function AdminDashboard() {
   }, [session, status, router]);
 
   useEffect(() => {
+    const fetchProfileImage = async () => {
+      try {
+        // First check if profileImage is in session
+        const sessionImage = (session?.user as any)?.image || (session?.user as any)?.profileImage;
+        if (sessionImage) {
+          setProfileImage(sessionImage);
+          return;
+        }
+
+        // If not in session, fetch it from API
+        const res = await fetch('/api/profile/image');
+        const data = await res.json();
+        if (res.ok && data.profileImage) {
+          setProfileImage(data.profileImage);
+        }
+      } catch (err) {
+        console.error('Error fetching profile image:', err);
+      }
+    };
+
     // Only fetch data if user is authenticated and is admin
     if (status === 'authenticated' && session && (session.user as any)?.role === 'admin') {
       fetchStats();
       fetchRecentTeams();
+      fetchProfileImage();
       
       // Auto-refresh teams every 5 seconds
       const interval = setInterval(() => {
@@ -176,7 +198,7 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-2">
             <UserAvatar
               name={session?.user?.name || ''}
-              image={(session?.user as any)?.profileImage}
+              image={profileImage || (session?.user as any)?.profileImage}
               size="lg"
             />
             <div>

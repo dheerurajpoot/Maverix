@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import TimeTrackingWidget from '@/components/TimeTrackingWidget';
 import { Calendar, Clock, DollarSign, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import UserAvatar from '@/components/UserAvatar';
 import LoadingDots from '@/components/LoadingDots';
 import AnnouncementManagement from '@/components/AnnouncementManagement';
@@ -18,10 +18,34 @@ export default function HRDashboard() {
     approvedLeaves: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  const fetchProfileImage = useCallback(async () => {
+    try {
+      // First check if profileImage is in session
+      const sessionImage = (session?.user as any)?.image || (session?.user as any)?.profileImage;
+      if (sessionImage) {
+        setProfileImage(sessionImage);
+        return;
+      }
+
+      // If not in session, fetch it from API
+      const res = await fetch('/api/profile/image');
+      const data = await res.json();
+      if (res.ok && data.profileImage) {
+        setProfileImage(data.profileImage);
+      }
+    } catch (err) {
+      console.error('Error fetching profile image:', err);
+    }
+  }, [session]);
 
   useEffect(() => {
     fetchStats();
-  }, []);
+    if (session) {
+      fetchProfileImage();
+    }
+  }, [session, fetchProfileImage]);
 
   const fetchStats = async () => {
     try {
@@ -72,7 +96,7 @@ export default function HRDashboard() {
           <div className="flex items-center gap-2">
             <UserAvatar
               name={session?.user?.name || ''}
-              image={(session?.user as any)?.profileImage}
+              image={profileImage || (session?.user as any)?.profileImage}
               size="lg"
             />
             <div>

@@ -255,7 +255,7 @@ export default function HRLeaveAllotmentPage() {
                     <div
                       onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
                       className="w-full px-3 py-2.5 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white cursor-pointer flex items-center justify-between"
-                    >
+                  >
                       <span className={selectedEmployees.length === 0 ? 'text-gray-400' : ''}>
                         {selectedEmployees.length === 0
                           ? 'Select Employees'
@@ -289,7 +289,7 @@ export default function HRLeaveAllotmentPage() {
                                 className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                               />
                               <span className="text-sm text-gray-700 font-secondary">
-                                {emp.name} ({emp.email})
+                        {emp.name} ({emp.email})
                               </span>
                             </label>
                           ))}
@@ -340,27 +340,27 @@ export default function HRLeaveAllotmentPage() {
                           : `${selectedLeaveTypes.length} leave type(s) selected`}
                       </span>
                       <Calendar className="w-4 h-4 text-gray-400" />
-                    </div>
+                </div>
 
                     {showLeaveTypeDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         <div className="p-2 border-b border-gray-200">
-                          <input
+                  <input
                             type="text"
                             placeholder="Search leave types..."
                             value={searchLeaveType}
                             onChange={(e) => setSearchLeaveType(e.target.value)}
                             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary outline-none"
                             onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
+                  />
+                </div>
                         <div className="p-2 space-y-1">
                           {filteredLeaveTypes.map((lt) => (
                             <label
                               key={lt._id}
                               className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
                             >
-                              <input
+                  <input
                                 type="checkbox"
                                 checked={selectedLeaveTypes.some((slt) => slt.leaveTypeId === lt._id)}
                                 onChange={() => toggleLeaveType(lt)}
@@ -404,9 +404,9 @@ export default function HRLeaveAllotmentPage() {
                               value={lt.days}
                               onChange={(e) => updateLeaveTypeDays(lt.leaveTypeId, e.target.value)}
                               placeholder="Days"
-                              required
+                    required
                               className="w-24 px-2.5 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-                            />
+                  />
                             <button
                               type="button"
                               onClick={() => removeLeaveType(lt.leaveTypeId)}
@@ -418,7 +418,7 @@ export default function HRLeaveAllotmentPage() {
                         </motion.div>
                       ))}
                     </div>
-                  </div>
+                </div>
                 )}
 
                 {/* Action Buttons */}

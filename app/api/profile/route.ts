@@ -17,13 +17,37 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const user = await User.findById((session.user as any).id).select('-password');
+    // Check if profileImage should be included (via query parameter)
+    const { searchParams } = new URL(request.url);
+    const includeImage = searchParams.get('includeImage') === 'true';
+
+    // Build select fields - exclude password, conditionally exclude profileImage
+    let selectFields = '-password';
+    if (!includeImage) {
+      // Exclude profileImage by default to prevent slow API responses
+      // Large base64 images can be several MB and slow down dashboard loads
+      selectFields += ' -profileImage';
+    }
+
+    const user = await User.findById((session.user as any).id).select(selectFields);
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ user });
+    // Convert to plain object and handle large profileImage
+    const userObj = user.toObject ? user.toObject() : user;
+    
+    // If profileImage is included and too large, exclude it to prevent issues
+    if (includeImage && userObj.profileImage && typeof userObj.profileImage === 'string') {
+      // If profileImage is larger than 100KB, exclude it (too large for API response)
+      if (userObj.profileImage.length > 100000) {
+        console.warn(`ProfileImage too large (${userObj.profileImage.length} bytes), excluding from response`);
+        userObj.profileImage = undefined;
+      }
+    }
+
+    return NextResponse.json({ user: userObj });
   } catch (error: any) {
     console.error('Get profile error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
@@ -128,7 +152,23 @@ export async function PUT(request: NextRequest) {
     );
 
     // Return updated user without password
-    const userResponse = await User.findById(userId).select('-password').lean();
+    // Exclude profileImage from response to prevent slow API responses
+    // The frontend already has the image if it was just updated
+    const userResponse = await User.findById(userId).select('-password -profileImage').lean();
+
+    if (!userResponse) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // If profileImage was just updated, include it in response (it's already in the updateFields)
+    if (updateFields.profileImage !== undefined) {
+      // Only include if it's not too large
+      if (updateFields.profileImage && typeof updateFields.profileImage === 'string' && updateFields.profileImage.length <= 100000) {
+        userResponse.profileImage = updateFields.profileImage;
+      } else if (updateFields.profileImage === null) {
+        userResponse.profileImage = undefined;
+      }
+    }
 
     return NextResponse.json({
       message: 'Profile updated successfully',

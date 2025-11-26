@@ -83,8 +83,8 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
         employee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employee?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employeeLeaves.some((leave) =>
-          (typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType)
-            ?.toLowerCase()
+        (typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType)
+          ?.toLowerCase()
             .includes(searchTerm.toLowerCase())
         );
 
@@ -206,9 +206,9 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
       <div className="p-4 space-y-3">
         {Object.keys(filteredGroupedLeaves).length === 0 ? (
           <div className="text-center py-12 text-gray-500 font-secondary">
-            No allotted leaves found
+                  No allotted leaves found
           </div>
-        ) : (
+            ) : (
           Object.keys(filteredGroupedLeaves).map((userId) => {
             const employeeLeaves = filteredGroupedLeaves[userId];
             const firstLeave = employeeLeaves[0];
@@ -220,24 +220,24 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="border border-gray-200 rounded-lg p-3 hover:border-primary/50 transition-colors"
-              >
+                >
                 {/* Employee Header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2.5">
-                    <UserAvatar
+                      <UserAvatar
                       name={employee?.name || firstLeave.userId?.name}
                       image={(employee as any)?.profileImage || (firstLeave.userId as any)?.profileImage}
-                      size="md"
-                    />
-                    <div>
+                        size="md"
+                      />
+                      <div>
                       <div className="text-sm font-semibold text-gray-900 font-primary">
                         {employee?.name || firstLeave.userId?.name || 'N/A'}
-                      </div>
+                        </div>
                       <div className="text-xs text-gray-500 font-secondary">
                         {employee?.email || firstLeave.userId?.email || 'N/A'}
                       </div>
                     </div>
-                  </div>
+                    </div>
                   <button
                     onClick={() => handleEditEmployee(userId)}
                     className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-secondary"
@@ -245,7 +245,7 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                     <Edit className="w-3.5 h-3.5" />
                     Edit
                   </button>
-                </div>
+                    </div>
 
                 {/* Leave Types Grid */}
                 <div className="flex flex-wrap gap-2">
@@ -261,7 +261,7 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                       </span>
                       <span className="text-xs font-semibold text-primary font-primary">
                         {leave.days || 'N/A'} {leave.days === 1 ? 'day' : 'days'}
-                      </span>
+                    </span>
                       <button
                         onClick={() => handleDeleteClick(leave)}
                         className="opacity-0 group-hover:opacity-100 p-0.5 text-red-600 hover:bg-red-50 rounded transition-all"
@@ -271,12 +271,12 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                       </button>
                     </motion.div>
                   ))}
-                </div>
+              </div>
               </motion.div>
             );
           })
         )}
-      </div>
+              </div>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

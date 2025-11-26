@@ -27,6 +27,7 @@ export default function EmployeeDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [showBirthdayCelebration, setShowBirthdayCelebration] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
@@ -74,6 +75,8 @@ export default function EmployeeDashboard() {
 
   const fetchUserProfile = async () => {
     try {
+      // Don't include profileImage in initial fetch to prevent slow dashboard loads
+      // ProfileImage will be loaded from session or fetched separately if needed
       const res = await fetch('/api/profile');
       const data = await res.json();
       if (res.ok && data.user) {
@@ -97,6 +100,26 @@ export default function EmployeeDashboard() {
       console.error('Error fetching user profile:', err);
     }
   };
+
+  const fetchProfileImage = useCallback(async () => {
+    try {
+      // First check if profileImage is in session
+      const sessionImage = (session?.user as any)?.image || (session?.user as any)?.profileImage;
+      if (sessionImage) {
+        setProfileImage(sessionImage);
+        return;
+      }
+
+      // If not in session, fetch it from API
+      const res = await fetch('/api/profile/image');
+      const data = await res.json();
+      if (res.ok && data.profileImage) {
+        setProfileImage(data.profileImage);
+      }
+    } catch (err) {
+      console.error('Error fetching profile image:', err);
+    }
+  }, [session]);
 
   const fetchAnnouncements = async () => {
     try {
@@ -133,8 +156,9 @@ export default function EmployeeDashboard() {
       fetchStats();
       fetchUserProfile();
       fetchAnnouncements();
+      fetchProfileImage();
     }
-  }, [session, fetchStats]);
+  }, [session, fetchStats, fetchProfileImage]);
 
   return (
     <DashboardLayout role="employee">
@@ -164,7 +188,7 @@ export default function EmployeeDashboard() {
               <div className="flex items-center gap-2">
                 <UserAvatar
                   name={session?.user?.name || ''}
-                  image={(session?.user as any)?.profileImage}
+                  image={profileImage || (session?.user as any)?.profileImage}
                   size="lg"
                 />
                 <div>

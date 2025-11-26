@@ -24,9 +24,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
     }
 
-    // Validate file size (max 2MB for base64 - slightly reduced to account for base64 encoding overhead)
-    if (file.size > 2 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be less than 2MB' }, { status: 400 });
+    // Validate file size (max 100KB after compression - images should be compressed client-side)
+    // This is a safety check in case compression fails
+    const maxSizeBytes = 100 * 1024; // 100KB
+    if (file.size > maxSizeBytes) {
+      return NextResponse.json({ 
+        error: `File size must be less than 100KB after compression. Current size: ${Math.round(file.size / 1024)}KB` 
+      }, { status: 400 });
     }
 
     // Convert file to base64 data URL

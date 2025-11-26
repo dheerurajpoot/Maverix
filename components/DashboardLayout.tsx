@@ -35,6 +35,34 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  // Fetch profileImage if not in session
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      // First check if profileImage is in session
+      const sessionImage = (session?.user as any)?.image || (session?.user as any)?.profileImage;
+      if (sessionImage) {
+        setProfileImage(sessionImage);
+        return;
+      }
+
+      // If not in session, fetch it from API
+      try {
+        const res = await fetch('/api/profile/image');
+        const data = await res.json();
+        if (res.ok && data.profileImage) {
+          setProfileImage(data.profileImage);
+        }
+      } catch (err) {
+        console.error('Error fetching profile image:', err);
+      }
+    };
+
+    if (session && status === 'authenticated') {
+      fetchProfileImage();
+    }
+  }, [session, status]);
 
   // Verify that the user's role matches the expected role
   useEffect(() => {
@@ -111,7 +139,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     return name[0].toUpperCase();
   };
 
-  const userImage = (session?.user as any)?.image || (session?.user as any)?.profileImage;
+  // Use profileImage from state (fetched from API if not in session) or fallback to session
+  const userImage = profileImage || (session?.user as any)?.image || (session?.user as any)?.profileImage;
   const userName = session?.user?.name;
   const userRole = (session?.user as any)?.role;
 

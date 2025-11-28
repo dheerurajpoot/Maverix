@@ -160,13 +160,13 @@ export default function PWAInstallPrompt() {
             <div className="bg-white rounded-lg shadow-2xl border border-gray-200 p-4">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Download className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
+                    <img src="/assets/mobileicon.jpg" alt="MaveriX" className="w-full h-full object-cover" />
                   </div>
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-gray-900">Install App</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">Install MaveriX</h3>
                     <button
                       onClick={handleDismiss}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -175,7 +175,7 @@ export default function PWAInstallPrompt() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-600 mb-3">
-                    Install MM HRM on your device for quick access and a better experience.
+                    Install <b>MaveriX</b> on your device for quick access and a better experience.
                   </p>
                   <div className="flex gap-2">
                     <button

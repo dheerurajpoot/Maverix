@@ -9,7 +9,7 @@ const OFFLINE_PAGE = '/offline.html';
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
-  '/assets/maverixicon.png',
+  '/assets/mobileicon.jpg',
   '/assets/preloader.png',
   '/manifest.json',
   '/icons/icon-192x192.png',

@@ -1,11 +1,13 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import connectDB from '@/lib/mongodb';
 import Attendance from '@/models/Attendance';
 import User from '@/models/User';
 import AttendanceManagement from '@/components/AttendanceManagement';
+import LoadingDots from '@/components/LoadingDots';
 
 export default async function HRAttendancePage() {
   const session = await getServerSession(authOptions);
@@ -29,7 +31,14 @@ export default async function HRAttendancePage() {
           <p className="text-sm text-gray-600 mt-0.5 font-secondary">View and manage employee attendance</p>
         </div>
 
-        <AttendanceManagement initialAttendance={JSON.parse(JSON.stringify(attendance))} />
+        <Suspense fallback={
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-12 flex flex-col items-center justify-center">
+            <LoadingDots size="lg" className="mb-3" />
+            <p className="text-sm text-gray-500 font-secondary">Loading attendance data...</p>
+          </div>
+        }>
+          <AttendanceManagement initialAttendance={JSON.parse(JSON.stringify(attendance))} isAdminOrHR={true} />
+        </Suspense>
       </div>
     </DashboardLayout>
   );

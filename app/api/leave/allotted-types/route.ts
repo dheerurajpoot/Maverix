@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     const role = (session.user as any).role;
     const userId = (session.user as any).id;
 
-    if (role !== 'employee') {
+    // Allow both employees and HR to access their allotted leave types
+    if (role !== 'employee' && role !== 'hr') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

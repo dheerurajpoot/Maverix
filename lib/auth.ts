@@ -82,7 +82,8 @@ export const authOptions: NextAuthOptions = {
           email: userDoc.email,
           name: userDoc.name,
           role: userDoc.role,
-            profileImage: profileImage,
+          // Exclude profileImage from JWT to prevent HTTP 431 errors (header too large)
+          // ProfileImage will be fetched separately via /api/profile/image
           mobileNumber: userDoc.mobileNumber,
           approved: userDoc.approved || false,
         };
@@ -100,18 +101,18 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
-          // Sanitize profileImage to prevent JWT token issues
-          token.profileImage = sanitizeProfileImage((user as any).profileImage);
+        // Exclude profileImage from JWT to prevent HTTP 431 errors
+        // ProfileImage will be fetched separately via /api/profile/image
         token.mobileNumber = (user as any).mobileNumber;
         token.approved = (user as any).approved;
       } else if (token.id) {
         // Refresh user data from database
         await connectDB();
-          const dbUser = await User.findById(token.id).select('profileImage mobileNumber name approved role emailVerified');
+        // Exclude profileImage from query to keep token small
+        const dbUser = await User.findById(token.id).select('mobileNumber name approved role emailVerified');
         if (dbUser) {
           const userDoc = dbUser as IUser;
-            // Sanitize profileImage to prevent JWT token issues
-            token.profileImage = sanitizeProfileImage(userDoc.profileImage);
+          // Don't include profileImage in token to prevent cookie size issues
           token.mobileNumber = userDoc.mobileNumber;
           token.name = userDoc.name;
           // Set approved status - be explicit about it
@@ -125,15 +126,11 @@ export const authOptions: NextAuthOptions = {
             // Admin and HR are always approved
             token.approved = true;
           }
-          }
         }
+      }
       } catch (error: any) {
         console.error('JWT callback error:', error);
         // If there's an error, ensure we still return a valid token
-        // Don't include profileImage if it's causing issues
-        if (token) {
-          token.profileImage = null;
-        }
       }
       return token;
     },
@@ -141,7 +138,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
-        (session.user as any).profileImage = token.profileImage;
+        // profileImage is excluded from session to prevent HTTP 431 errors
+        // Fetch it separately via /api/profile/image when needed
         (session.user as any).mobileNumber = token.mobileNumber;
         (session.user as any).approved = token.approved;
       }
@@ -153,6 +151,20 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        // Increase maxAge to match session maxAge
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      },
+    },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

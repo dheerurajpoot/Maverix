@@ -18,6 +18,7 @@ export interface IUser extends Document {
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
+  weeklyOff?: string[]; // Array of day names like ['Sunday', 'Monday']
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +92,17 @@ const UserSchema: Schema = new Schema(
       type: String,
       trim: true,
       uppercase: true,
+    },
+    weeklyOff: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function(v: string[]) {
+          const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          return v.every(day => validDays.includes(day));
+        },
+        message: 'Weekly off must be valid day names',
+      },
     },
   },
   {

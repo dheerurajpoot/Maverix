@@ -23,9 +23,19 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const users = await User.find({ role: 'employee' })
-      .select('_id name email role designation profileImage mobileNumber emailVerified')
+    // Return all non-admin users (employee + hr) for admin/hr roles
+    const users = await User.find({ role: { $ne: 'admin' } })
+      .select('_id name email role designation profileImage mobileNumber emailVerified approved weeklyOff createdAt')
       .lean();
+
+    // Debug logging to verify weeklyOff is being returned
+    console.log('[Get Users] Users with weeklyOff:', users.map((u: any) => ({ 
+      name: u.name, 
+      email: u.email, 
+      weeklyOff: u.weeklyOff,
+      weeklyOffType: typeof u.weeklyOff,
+      weeklyOffIsArray: Array.isArray(u.weeklyOff)
+    })));
 
     return NextResponse.json({ users });
   } catch (error: any) {
@@ -47,7 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { email, name, role, designation } = await request.json();
+    const { email, name, role, designation, weeklyOff } = await request.json();
 
     if (!email || !name) {
       return NextResponse.json(
@@ -88,6 +98,7 @@ export async function POST(request: NextRequest) {
       name,
       role: finalRole,
       designation: designation || undefined,
+      weeklyOff: Array.isArray(weeklyOff) ? weeklyOff.filter(day => day && day.trim()) : [],
       verificationToken,
       verificationTokenExpiry,
       emailVerified: false,
@@ -107,6 +118,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         designation: user.designation,
         emailVerified: user.emailVerified,
+        weeklyOff: user.weeklyOff || [],
       },
     });
   } catch (error: any) {

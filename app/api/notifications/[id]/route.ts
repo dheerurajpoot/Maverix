@@ -6,7 +6,7 @@ import Notification from '@/models/Notification';
 
 export const dynamic = 'force-dynamic';
 
-// PATCH - Dismiss a notification
+// PATCH - Update a notification (mark as read or dismiss)
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,6 +16,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     const userId = (session.user as any).id;
+    const body = await request.json();
 
     await connectDB();
 
@@ -25,21 +26,39 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
 
-    // Ensure user can only dismiss their own notifications
+    // Ensure user can only update their own notifications
     if (notification.userId.toString() !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    notification.dismissed = true;
-    notification.dismissedAt = new Date();
+    // Update read status if provided
+    if (body.read !== undefined) {
+      notification.read = body.read;
+      if (body.read) {
+        notification.readAt = new Date();
+      } else {
+        notification.readAt = undefined;
+      }
+    }
+
+    // Update dismissed status if provided
+    if (body.dismissed !== undefined) {
+      notification.dismissed = body.dismissed;
+      if (body.dismissed) {
+        notification.dismissedAt = new Date();
+      } else {
+        notification.dismissedAt = undefined;
+      }
+    }
+
     await notification.save();
 
     return NextResponse.json({
-      message: 'Notification dismissed successfully',
+      message: 'Notification updated successfully',
       notification,
     });
   } catch (error: any) {
-    console.error('Dismiss notification error:', error);
+    console.error('Update notification error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }

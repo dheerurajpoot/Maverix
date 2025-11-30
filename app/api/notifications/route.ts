@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Notification from '@/models/Notification';
+import { createNotification } from '@/lib/notificationManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +20,24 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const notifications = await Notification.find({
-      userId,
-      dismissed: false,
-    })
+    // Get query parameters
+    const limit = request.nextUrl.searchParams.get('limit');
+    const includeDismissed = request.nextUrl.searchParams.get('includeDismissed') === 'true';
+    
+    const query: any = { userId };
+    if (!includeDismissed) {
+      query.dismissed = false;
+    }
+
+    // Always limit to 10 most recent notifications
+    const notificationLimit = limit ? Math.min(parseInt(limit), 10) : 10;
+
+    const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
+      .limit(notificationLimit)
       .populate('leaveId', 'startDate endDate days leaveType reason status')
+      .populate('feedId', 'content createdAt')
+      .populate('mentionedBy', 'name email profileImage')
       .lean();
 
     return NextResponse.json({ notifications });
@@ -59,16 +72,13 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    const notification = new Notification({
+    const notification = await createNotification({
       userId,
       type,
       title,
       message,
       leaveId: leaveId || undefined,
-      dismissed: false,
     });
-
-    await notification.save();
 
     return NextResponse.json({
       message: 'Notification created successfully',

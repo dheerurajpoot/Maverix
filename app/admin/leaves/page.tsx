@@ -1,11 +1,13 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
 import LeaveType from '@/models/LeaveType';
 import LeaveManagementTabs from '@/components/LeaveManagementTabs';
+import LoadingDots from '@/components/LoadingDots';
 
 export default async function AdminLeavesPage() {
   const session = await getServerSession(authOptions);
@@ -35,10 +37,17 @@ export default async function AdminLeavesPage() {
           <p className="text-sm text-gray-600 mt-0.5 font-secondary">Manage leave requests, types, and allotments</p>
         </div>
 
-        <LeaveManagementTabs
-          initialLeaves={JSON.parse(JSON.stringify(leaves))}
-          role="admin"
-        />
+        <Suspense fallback={
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 flex flex-col items-center justify-center">
+            <LoadingDots size="lg" className="mb-3" />
+            <p className="text-sm text-gray-500 font-secondary">Loading leave management...</p>
+          </div>
+        }>
+          <LeaveManagementTabs
+            initialLeaves={JSON.parse(JSON.stringify(leaves))}
+            role="admin"
+          />
+        </Suspense>
       </div>
     </DashboardLayout>
   );

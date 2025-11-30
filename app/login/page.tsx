@@ -18,11 +18,10 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Handle redirect when user becomes authenticated
+  // Handle redirect when user becomes authenticated based on role
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       const role = (session.user as any)?.role;
-      const approved = (session.user as any)?.approved;
       
       // Small delay to ensure cookies are set
       setTimeout(() => {
@@ -34,11 +33,10 @@ function LoginForm() {
         } else if (role === 'hr') {
           redirectUrl = '/hr';
         } else if (role === 'employee') {
-          redirectUrl = approved === false ? '/employee/waiting' : '/employee';
+          redirectUrl = '/employee';
         }
         
-        // Use window.location.href for reliable redirect in production
-        // This ensures cookies are properly sent with the request
+        // Use window.location.href for reliable redirect
         window.location.href = redirectUrl;
       }, 100);
     }
@@ -68,9 +66,9 @@ function LoginForm() {
         return;
       }
 
-      // If signIn succeeded, the useEffect above will handle the redirect
-      // when the session becomes available. Just keep loading state.
-      // The session will be updated automatically by NextAuth
+      // If signIn succeeded, wait for session to update
+      // The useEffect above will handle the redirect based on role
+      // Session will be updated automatically by NextAuth
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'An error occurred during login. Please try again.');

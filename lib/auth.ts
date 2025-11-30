@@ -41,55 +41,41 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Please enter your email and password');
-        }
+          if (!credentials?.email || !credentials?.password) {
+            throw new Error('Please enter your email and password');
+          }
 
-        await connectDB();
+          await connectDB();
 
-        const user = await User.findOne({ email: credentials.email.toLowerCase() });
+          const user = await User.findOne({ email: credentials.email.toLowerCase() });
 
-        if (!user) {
-          throw new Error('No user found with this email');
-        }
+          if (!user) {
+            throw new Error('Invalid email or password');
+          }
 
-        if (!user.emailVerified) {
-          throw new Error('Please verify your email first');
-        }
+          if (!user.password) {
+            throw new Error('Invalid email or password');
+          }
 
-        if (!user.password) {
-          throw new Error('Please set your password first');
-        }
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+          if (!isPasswordValid) {
+            throw new Error('Invalid email or password');
+          }
 
-        if (!isPasswordValid) {
-          throw new Error('Invalid password');
-        }
+          const userDoc = user as IUser;
 
-        // For employees, check if they are approved
-        if (user.role === 'employee' && !user.approved) {
-          // Allow login but they'll be redirected to waiting page
-        }
-
-        const userDoc = user as IUser;
-          
-          // Handle profileImage - validate and sanitize to prevent issues
-          const profileImage = sanitizeProfileImage(userDoc.profileImage);
-
-        return {
-          id: String(userDoc._id),
-          email: userDoc.email,
-          name: userDoc.name,
-          role: userDoc.role,
-          // Exclude profileImage from JWT to prevent HTTP 431 errors (header too large)
-          // ProfileImage will be fetched separately via /api/profile/image
-          mobileNumber: userDoc.mobileNumber,
-          approved: userDoc.approved || false,
-        };
+          // Return user data with role for redirect
+          return {
+            id: String(userDoc._id),
+            email: userDoc.email,
+            name: userDoc.name,
+            role: userDoc.role,
+            mobileNumber: userDoc.mobileNumber,
+            approved: userDoc.approved || false,
+          };
         } catch (error: any) {
           console.error('Authorization error:', error);
-          // Re-throw the error so NextAuth can handle it properly
           throw error;
         }
       },

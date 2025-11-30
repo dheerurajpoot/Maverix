@@ -10,17 +10,13 @@ export default withAuth(
     if (isAuthPage) {
       if (isAuth) {
         const role = (token as any)?.role;
-        const approved = (token as any)?.approved;
         
+        // Redirect authenticated users based on their role
         if (role === 'admin') {
           return NextResponse.redirect(new URL('/admin', req.url));
         } else if (role === 'hr') {
           return NextResponse.redirect(new URL('/hr', req.url));
         } else if (role === 'employee') {
-          // Redirect to waiting page only if explicitly not approved (false)
-          if (approved === false) {
-            return NextResponse.redirect(new URL('/employee/waiting', req.url));
-          }
           return NextResponse.redirect(new URL('/employee', req.url));
         }
       }

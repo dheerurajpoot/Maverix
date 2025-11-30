@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, Suspense, useRef } from 'react';
-import { signIn, getSession } from 'next-auth/react';
+import { useState, Suspense, useEffect } from 'react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
@@ -11,18 +11,44 @@ import Logo from '@/components/Logo';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const hasRedirected = useRef(false);
+
+  // Handle redirect when user becomes authenticated
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      const role = (session.user as any)?.role;
+      const approved = (session.user as any)?.approved;
+      
+      // Small delay to ensure cookies are set
+      setTimeout(() => {
+        // Determine redirect URL based on role
+        let redirectUrl = '/';
+        
+        if (role === 'admin') {
+          redirectUrl = '/admin';
+        } else if (role === 'hr') {
+          redirectUrl = '/hr';
+        } else if (role === 'employee') {
+          redirectUrl = approved === false ? '/employee/waiting' : '/employee';
+        }
+        
+        // Use window.location.href for reliable redirect in production
+        // This ensures cookies are properly sent with the request
+        window.location.href = redirectUrl;
+      }, 100);
+    }
+  }, [session, status]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Prevent multiple submissions
-    if (loading || hasRedirected.current) {
+    if (loading) {
       return;
     }
     
@@ -42,61 +68,13 @@ function LoginForm() {
         return;
       }
 
-      // If signIn succeeded, wait for session to be established
-      // Retry getting session with exponential backoff
-      let session = null;
-      let retries = 5;
-      
-      while (retries > 0 && !session) {
-        await new Promise(resolve => setTimeout(resolve, 300 * (6 - retries)));
-        
-        try {
-          session = await getSession();
-          if (session?.user) {
-            break;
-          }
-        } catch (err) {
-          console.error('Session fetch error:', err);
-        }
-        
-        retries--;
-      }
-      
-      // If we have a session, redirect based on role
-      if (session?.user && !hasRedirected.current) {
-        hasRedirected.current = true;
-        const role = (session.user as any)?.role;
-        const approved = (session.user as any)?.approved;
-        
-        // Determine redirect URL based on role
-        let redirectUrl = '/';
-        
-        if (role === 'admin') {
-          redirectUrl = '/admin';
-        } else if (role === 'hr') {
-          redirectUrl = '/hr';
-        } else if (role === 'employee') {
-          redirectUrl = approved === false ? '/employee/waiting' : '/employee';
-        }
-        
-        // Use window.location for reliable redirect in production
-        // This ensures cookies are properly sent
-        window.location.href = redirectUrl;
-        return;
-      }
-      
-      // Fallback: If no session after retries, redirect to home
-      // Middleware will handle authentication and redirect
-      if (!hasRedirected.current) {
-        hasRedirected.current = true;
-        const from = searchParams.get('from') || '/';
-        window.location.href = from;
-      }
+      // If signIn succeeded, the useEffect above will handle the redirect
+      // when the session becomes available. Just keep loading state.
+      // The session will be updated automatically by NextAuth
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'An error occurred during login. Please try again.');
       setLoading(false);
-      hasRedirected.current = false;
     }
   };
 

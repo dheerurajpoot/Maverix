@@ -99,22 +99,26 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       try {
       if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
+        // Ensure all values are properly set
+        token.id = user.id || '';
+        token.email = user.email || '';
+        token.name = user.name || '';
+        token.role = (user as any).role || '';
         // Exclude profileImage from JWT to prevent HTTP 431 errors
         // ProfileImage will be fetched separately via /api/profile/image
-        token.mobileNumber = (user as any).mobileNumber;
-        token.approved = (user as any).approved;
+        token.mobileNumber = (user as any).mobileNumber || '';
+        token.approved = (user as any).approved !== undefined ? (user as any).approved : false;
       } else if (token.id) {
         // Refresh user data from database
         await connectDB();
         // Exclude profileImage from query to keep token small
-        const dbUser = await User.findById(token.id).select('mobileNumber name approved role emailVerified');
+        const dbUser = await User.findById(token.id).select('mobileNumber name approved role emailVerified email');
         if (dbUser) {
           const userDoc = dbUser as IUser;
           // Don't include profileImage in token to prevent cookie size issues
-          token.mobileNumber = userDoc.mobileNumber;
-          token.name = userDoc.name;
+          token.mobileNumber = userDoc.mobileNumber || '';
+          token.name = userDoc.name || '';
+          token.email = userDoc.email || '';
           // Set approved status - be explicit about it
           if (userDoc.role === 'employee') {
             // For employees:
@@ -130,19 +134,48 @@ export const authOptions: NextAuthOptions = {
       }
       } catch (error: any) {
         console.error('JWT callback error:', error);
-        // If there's an error, ensure we still return a valid token
+        // If there's an error, ensure we still return a valid token with defaults
+        if (!token.id) {
+          return null as any;
+        }
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      // Ensure session and session.user exist
+      if (!session) {
+        return null as any;
+      }
+      
+      if (!session.user) {
+        session.user = {
+          id: token.id || '',
+          email: token.email || '',
+          name: token.name || '',
+          role: (token.role as 'admin' | 'hr' | 'employee') || 'employee',
+        };
+      }
+      
+      // Ensure all required properties exist before assignment
+      if (token.id && typeof token.id === 'string') {
         (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
-        // profileImage is excluded from session to prevent HTTP 431 errors
-        // Fetch it separately via /api/profile/image when needed
+      }
+      if (token.email && typeof token.email === 'string') {
+        session.user.email = token.email;
+      }
+      if (token.name && typeof token.name === 'string') {
+        session.user.name = token.name;
+      }
+      if (token.role && typeof token.role === 'string') {
+        session.user.role = token.role as 'admin' | 'hr' | 'employee';
+      }
+      if (token.mobileNumber) {
         (session.user as any).mobileNumber = token.mobileNumber;
+      }
+      if (token.approved !== undefined) {
         (session.user as any).approved = token.approved;
       }
+      
       return session;
     },
   },
@@ -167,5 +200,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development',
 };
 

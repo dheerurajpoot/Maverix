@@ -50,14 +50,14 @@ function LoginForm() {
         return;
       }
 
-      // Wait a bit for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for session to be established (increased wait time for production)
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Get user role and approval status from session with retry logic
-      let session = null;
-      let retries = 5;
+      // Fetch session to get user role with retry logic
+      let sessionData = null;
+      let retries = 3;
       
-      while (retries > 0 && !session) {
+      while (retries > 0 && !sessionData) {
         try {
           const res = await fetch('/api/auth/session', {
             method: 'GET',
@@ -72,58 +72,43 @@ function LoginForm() {
 
           if (res.ok) {
             const data = await res.json();
-            if (data && data.user) {
-              session = data;
+            if (data?.user) {
+              sessionData = data;
               break;
             }
           }
-          
-          retries--;
-          if (retries > 0) {
-            // Wait before retrying with exponential backoff
-            await new Promise(resolve => setTimeout(resolve, 500 * (5 - retries)));
-          }
-        } catch (fetchError: any) {
-          retries--;
+        } catch (fetchError) {
           console.error('Session fetch error:', fetchError);
-          if (retries === 0) {
-            // Final fallback: redirect and let middleware handle it
-            const from = searchParams.get('from') || '/';
-            window.location.href = from;
-            return;
-          }
+        }
+        
+        retries--;
+        if (retries > 0) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
-      clearTimeout(timeoutId);
+      // If we have session data, redirect based on role
+      if (sessionData?.user) {
+        const role = sessionData.user.role;
+        const approved = sessionData.user.approved;
 
-      if (!session || !session.user) {
-        // If we still don't have a session after retries, redirect
-        const from = searchParams.get('from') || '/';
-        window.location.href = from;
-        return;
+        if (role) {
+          // Redirect employees to waiting page only if explicitly not approved (false)
+          if (role === 'employee' && approved === false) {
+            window.location.href = '/employee/waiting';
+            return;
+          }
+
+          // Redirect to role-based dashboard
+          const from = searchParams.get('from') || `/${role}`;
+          window.location.href = from;
+          return;
+        }
       }
 
-      const role = session?.user?.role;
-      const approved = session?.user?.approved;
-
-      if (!role) {
-        // If role is not available, redirect to home
-        window.location.href = '/';
-        return;
-      }
-
-      // Redirect employees to waiting page only if explicitly not approved (false)
-      // If approved is undefined/null, treat as approved (for existing employees)
-      if (role === 'employee' && approved === false) {
-        window.location.href = '/employee/waiting';
-        return;
-      }
-
-      // Use window.location.href for reliable navigation in production
-      const from = searchParams.get('from') || `/${role}`;
-      window.location.href = from;
+      // Fallback: Redirect to home and let middleware handle it
+      // Middleware will check session and redirect appropriately
+      window.location.href = '/';
     } catch (err: any) {
       clearTimeout(timeoutId);
       console.error('Login error:', err);

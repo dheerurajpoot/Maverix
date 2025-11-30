@@ -22,24 +22,38 @@ function LoginForm() {
     if (status === 'authenticated' && session?.user) {
       const role = (session.user as any)?.role;
       
-      // Small delay to ensure cookies are set
+      if (!role) {
+        // Wait a bit more if role is not yet available
+        return;
+      }
+      
+      // Determine redirect URL based on role
+      let redirectPath = '/';
+      
+      if (role === 'admin') {
+        redirectPath = '/admin';
+      } else if (role === 'hr') {
+        redirectPath = '/hr';
+      } else if (role === 'employee') {
+        redirectPath = '/employee';
+      }
+      
+      // Use absolute URL for production reliability
+      const redirectUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}${redirectPath}`
+        : redirectPath;
+      
+      // Use router.push first, then fallback to window.location for production reliability
+      router.push(redirectPath);
+      
+      // Fallback: Force redirect after a short delay to ensure it works in production
       setTimeout(() => {
-        // Determine redirect URL based on role
-        let redirectUrl = '/';
-        
-        if (role === 'admin') {
-          redirectUrl = '/admin';
-        } else if (role === 'hr') {
-          redirectUrl = '/hr';
-        } else if (role === 'employee') {
-          redirectUrl = '/employee';
+        if (window.location.pathname !== redirectPath) {
+          window.location.href = redirectUrl;
         }
-        
-        // Use window.location.href for reliable redirect
-        window.location.href = redirectUrl;
-      }, 100);
+      }, 500);
     }
-  }, [session, status]);
+  }, [session, status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +79,52 @@ function LoginForm() {
         return;
       }
 
-      // If signIn succeeded, wait for session to update
-      // The useEffect above will handle the redirect based on role
+      // If signIn succeeded, wait for session to be available
+      if (result?.ok) {
+        // Wait a moment for the session cookie to be set
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Force session refresh by calling the session endpoint
+        try {
+          const sessionRes = await fetch('/api/auth/session', { 
+            method: 'GET', 
+            cache: 'no-store',
+            credentials: 'include'
+          });
+          
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            
+            // If we have session data with role, redirect immediately
+            if (sessionData?.user?.role) {
+              const role = sessionData.user.role;
+              let redirectPath = '/';
+              
+              if (role === 'admin') {
+                redirectPath = '/admin';
+              } else if (role === 'hr') {
+                redirectPath = '/hr';
+              } else if (role === 'employee') {
+                redirectPath = '/employee';
+              }
+              
+              // Use absolute URL for production reliability
+              const redirectUrl = typeof window !== 'undefined' 
+                ? `${window.location.origin}${redirectPath}`
+                : redirectPath;
+              
+              // Use window.location for reliable redirect in production
+              window.location.href = redirectUrl;
+              return;
+            }
+          }
+        } catch (sessionErr) {
+          console.error('Session fetch error:', sessionErr);
+          // Continue with useEffect redirect as fallback
+        }
+      }
+
+      // Fallback: The useEffect above will handle the redirect based on role
       // Session will be updated automatically by NextAuth
     } catch (err: any) {
       console.error('Login error:', err);

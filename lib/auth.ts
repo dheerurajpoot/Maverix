@@ -195,8 +195,8 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Let browser handle domain
+        secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1',
+        domain: undefined, // Let browser handle domain automatically
         // Increase maxAge to match session maxAge
         maxAge: 30 * 24 * 60 * 60, // 30 days
       },
@@ -204,5 +204,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
+  // Ensure NEXTAUTH_URL is set for production
+  trustHost: true, // Trust the host header (important for Vercel/production)
 };
 

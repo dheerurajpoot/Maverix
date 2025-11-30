@@ -37,31 +37,49 @@ export default withAuth(
     const role = (token as any)?.role;
     const approved = (token as any)?.approved;
 
-    // Allow access to waiting page for unapproved employees only
-    if (path === '/employee/waiting' && role === 'employee') {
-      // If employee is approved (true or undefined/null treated as true), redirect them to dashboard
-      if (approved !== false) {
-        return NextResponse.redirect(new URL('/employee', req.url));
+    // Handle role-based access control
+    if (path.startsWith('/admin')) {
+      if (role !== 'admin') {
+        return NextResponse.redirect(new URL(`/${role || 'employee'}`, req.url));
       }
       return null;
     }
 
-    // Redirect unapproved employees trying to access employee dashboard
-    // Only redirect if approved is explicitly false
-    if (path.startsWith('/employee') && role === 'employee' && approved === false && path !== '/employee/waiting') {
-      return NextResponse.redirect(new URL('/employee/waiting', req.url));
+    if (path.startsWith('/hr')) {
+      if (role !== 'hr' && role !== 'admin') {
+        return NextResponse.redirect(new URL(`/${role || 'employee'}`, req.url));
+      }
+      return null;
     }
 
-    if (path.startsWith('/admin') && role !== 'admin') {
-      return NextResponse.redirect(new URL(`/${role}`, req.url));
-    }
+    if (path.startsWith('/employee')) {
+      // Only employees, HR, and admins can access employee routes
+      if (role !== 'employee' && role !== 'hr' && role !== 'admin') {
+        return NextResponse.redirect(new URL(`/${role || '/'}`, req.url));
+      }
 
-    if (path.startsWith('/hr') && role !== 'hr' && role !== 'admin') {
-      return NextResponse.redirect(new URL(`/${role}`, req.url));
-    }
+      // Handle employee-specific approval logic
+      if (role === 'employee') {
+        // If accessing waiting page
+        if (path === '/employee/waiting') {
+          // Only allow if explicitly not approved (false)
+          // If approved is true, undefined, or null, redirect to dashboard
+          if (approved === true || approved === undefined || approved === null) {
+            return NextResponse.redirect(new URL('/employee', req.url));
+          }
+          // If approved is false, allow access to waiting page
+          return null;
+        }
 
-    if (path.startsWith('/employee') && role !== 'employee' && role !== 'hr' && role !== 'admin') {
-      return NextResponse.redirect(new URL(`/${role}`, req.url));
+        // If accessing employee dashboard or other employee routes (not waiting)
+        // Only redirect to waiting page if explicitly not approved (false)
+        if (approved === false) {
+          return NextResponse.redirect(new URL('/employee/waiting', req.url));
+        }
+      }
+
+      // Allow access for employees (approved), HR, and admins
+      return null;
     }
   },
   {

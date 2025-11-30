@@ -22,6 +22,12 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setError('Login is taking longer than expected. Please try again.');
+      setLoading(false);
+    }, 30000); // 30 second timeout
+
     try {
       const result = await signIn('credentials', {
         email,
@@ -29,18 +35,27 @@ function LoginForm() {
         redirect: false,
       });
 
+      clearTimeout(timeoutId);
+
       if (result?.error) {
         setError(result.error);
         setLoading(false);
         return;
       }
 
+      // Check if login was successful
+      if (!result?.ok) {
+        setError('Login failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       // Wait a bit for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Get user role and approval status from session with retry logic
       let session = null;
-      let retries = 3;
+      let retries = 5;
       
       while (retries > 0 && !session) {
         try {
@@ -48,33 +63,43 @@ function LoginForm() {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
             },
             cache: 'no-store',
+            credentials: 'include',
           });
 
           if (res.ok) {
-            session = await res.json();
-            break;
-          } else {
-            throw new Error(`Session fetch failed: ${res.status}`);
+            const data = await res.json();
+            if (data && data.user) {
+              session = data;
+              break;
+            }
+          }
+          
+          retries--;
+          if (retries > 0) {
+            // Wait before retrying with exponential backoff
+            await new Promise(resolve => setTimeout(resolve, 500 * (5 - retries)));
           }
         } catch (fetchError: any) {
           retries--;
-          if (retries > 0) {
-            // Wait before retrying
-            await new Promise(resolve => setTimeout(resolve, 300));
-          } else {
-            console.error('Session fetch error after retries:', fetchError);
-            // Fallback: use NextAuth redirect mechanism
+          console.error('Session fetch error:', fetchError);
+          if (retries === 0) {
+            // Final fallback: redirect and let middleware handle it
             const from = searchParams.get('from') || '/';
             window.location.href = from;
             return;
           }
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
+      clearTimeout(timeoutId);
+
       if (!session || !session.user) {
-        // If we still don't have a session, redirect to home
+        // If we still don't have a session after retries, redirect
         const from = searchParams.get('from') || '/';
         window.location.href = from;
         return;
@@ -85,23 +110,22 @@ function LoginForm() {
 
       if (!role) {
         // If role is not available, redirect to home
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
         return;
       }
 
       // Redirect employees to waiting page only if explicitly not approved (false)
       // If approved is undefined/null, treat as approved (for existing employees)
       if (role === 'employee' && approved === false) {
-        router.push('/employee/waiting');
-        router.refresh();
+        window.location.href = '/employee/waiting';
         return;
       }
 
+      // Use window.location.href for reliable navigation in production
       const from = searchParams.get('from') || `/${role}`;
-      router.push(from);
-      router.refresh();
+      window.location.href = from;
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.error('Login error:', err);
       setError(err.message || 'An error occurred during login. Please try again.');
       setLoading(false);

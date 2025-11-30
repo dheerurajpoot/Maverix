@@ -71,7 +71,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip non-GET requests
+  // CRITICAL: Never intercept POST/PUT/DELETE requests - they must go directly to network
+  // This is especially important for authentication (login/logout) and form submissions
   if (request.method !== 'GET') {
     return;
   }
@@ -92,19 +93,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip API routes that need fresh data (but cache some GET APIs)
+  // CRITICAL: Never intercept authentication API routes - let them go directly to network
+  // This prevents service worker from interfering with login/logout/session management
+  if (url.pathname.startsWith('/api/auth/')) {
+    // Don't intercept auth routes at all - let them bypass service worker
+    return;
+  }
+
+  // Skip other API routes that need fresh data
   if (url.pathname.startsWith('/api/')) {
-    // Cache some API responses for offline use
-    if (url.pathname.startsWith('/api/auth/session')) {
-      event.respondWith(
-        networkFirstStrategy(request)
-      );
-    } else {
-      // For other APIs, try network first, fallback to cache
-      event.respondWith(
-        networkFirstStrategy(request)
-      );
-    }
+    // For other APIs, try network first, fallback to cache
+    event.respondWith(
+      networkFirstStrategy(request)
+    );
     return;
   }
 
@@ -218,11 +219,9 @@ async function networkFirstStrategy(request) {
     // CRITICAL: Never cache redirect responses (iOS Safari limitation)
     const isRedirect = networkResponse.status >= 300 && networkResponse.status < 400;
     
-    // Only cache successful, non-redirect responses
-    if (networkResponse && networkResponse.status === 200 && !isRedirect) {
-      const cache = await caches.open(RUNTIME_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
+    // CRITICAL: Never cache API responses - always get fresh data
+    // This prevents stale data issues, especially for authentication
+    // Only return the network response without caching
     
     return networkResponse;
   } catch (error) {

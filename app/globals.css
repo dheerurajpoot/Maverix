@@ -21,7 +21,7 @@
 
 @media (max-width: 768px) {
   :root {
-    --background-image: url('https://image.s7.sfmc-content.com/lib/fe2a11717d640474741277/m/1/816bd38b-d986-4381-aa7e-baff25a09d68.jpg');
+    --background-image: url('https://i.pinimg.com/1200x/9e/c5/33/9ec533ecf6f0c8fb65f316cb998df910.jpg');
   }
 }
 
@@ -109,6 +109,7 @@ p, span, div, a, button, input, textarea, select, label,
     z-index: 1;
   }
 }
+
 
 /* Dashboard Header Image */
 .dashboard-header-image {

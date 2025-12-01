@@ -76,12 +76,12 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-auth-pages flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-auth-pages p-4 relative">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-white/50 backdrop-blur-xl rounded-lg shadow-xl p-6 w-full max-w-md"
+        className="bg-white/50 backdrop-blur-xl rounded-lg shadow-xl p-6 w-full max-w-md mx-auto mt-[60px] md:mt-[100px]"
       >
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">

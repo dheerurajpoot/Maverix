@@ -125,12 +125,16 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const menu = role === 'admin' ? adminMenu : role === 'hr' ? hrMenu : employeeMenu;
 
   const handleLogout = async () => {
-    // Immediately redirect to landing page without showing loading state
-    window.location.href = '/';
-    // Sign out in the background
-    signOut({ redirect: false }).catch((error) => {
+    try {
+      // Sign out without redirect first
+      await signOut({ redirect: false });
+      // Then manually redirect using current origin to ensure it works on mobile
+      window.location.href = window.location.origin + '/';
+    } catch (error) {
       console.error('Logout error:', error);
-    });
+      // Fallback: if signOut fails, force redirect using current origin
+      window.location.href = window.location.origin + '/';
+    }
   };
 
   // Get user initials for avatar fallback

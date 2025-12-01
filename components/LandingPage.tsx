@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, Users, Clock, Calendar, DollarSign, Shield, Zap, TrendingUp } from 'lucide-react';
+import { ArrowRight, Users, Clock, Calendar, DollarSign, Shield, Zap, TrendingUp, LogInIcon } from 'lucide-react';
 import Link from 'next/link';
 import Logo from './Logo';
 
@@ -9,7 +9,17 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Fixed Background with Image */}
-      <div className="fixed inset-0 z-0" style={{ backgroundColor: '#cbecff', backgroundImage: 'var(--background-image)', backgroundSize: 'cover', backgroundPosition: '50% 90%', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }}>
+      <div
+        className="fixed inset-0 z-0"
+        style={{
+          backgroundColor: '#cbecff',
+          backgroundImage: 'var(--background-image)',
+          backgroundSize: 'cover',
+          backgroundPosition: '50% 90%', // default (desktop)
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+        }}
+      >
       </div>
 
       {/* Scrollable Content */}
@@ -47,7 +57,7 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-smd:text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed font-secondary"
+                className="text-sm md:text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed font-secondary"
               >
                 Streamline your human resources operations with our intuitive platform.
                 Manage employees, track attendance, handle leave requests, and more—all in one place.
@@ -57,15 +67,16 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                className="flex sm:flex-row gap-4 justify-center items-center"
+                className=" flex sm:flex-row gap-4 justify-center items-center"
               >
                 <Link href="/login">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="px-6 py-3 bg-white text-primary rounded-lg font-semibold text-base border-2 border-primary hover:bg-primary-50 transition-all duration-300 shadow-lg"
+                    className=" px-6 py-3 bg-white text-primary rounded-lg font-semibold text-base hover: transition-all duration-300 flex flex-row items-center gap-1"
                   >
                     Sign In
+                    <LogInIcon className="w-4 h-4" />
                   </motion.button>
                 </Link>
               </motion.div>

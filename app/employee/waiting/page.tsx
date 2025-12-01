@@ -19,10 +19,14 @@ export default function EmployeeWaitingPage() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await signOut({ callbackUrl: '/', redirect: true });
+      // Sign out without redirect first
+      await signOut({ redirect: false });
+      // Then manually redirect using current origin to ensure it works on mobile
+      window.location.href = window.location.origin + '/';
     } catch (error) {
       console.error('Logout error:', error);
-      setLoggingOut(false);
+      // Fallback: if signOut fails, force redirect using current origin
+      window.location.href = window.location.origin + '/';
     }
   };
 

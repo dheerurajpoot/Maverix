@@ -413,36 +413,36 @@ export default function TimeTrackingWidget() {
               animate={{ opacity: 1, y: 0 }}
               className="relative bg-white rounded-md shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
             >
-        <div className="p-6 flex-1 flex flex-col">
+        <div className="p-3 sm:p-4 md:p-6 flex-1 flex flex-col">
           {/* Status Badge - Clocked In */}
         {clockedIn && (
-          <div className="flex justify-center mb-4">
-            <div className="bg-green-100 text-green-500 px-2 py-0.5 rounded-lg text-[10px] font-semibold">
+          <div className="flex justify-center mb-2">
+            <div className="bg-green-100 text-green-500 px-2 py-0.5 rounded-lg text-[9px] font-semibold">
               Clocked In
             </div>
           </div>
         )}
 
         {/* Current Time / Elapsed Time Display - Top Section */}
-        <div className="text-center mb-6">
-          <div className="mb-2">
+        <div className="text-center mb-3 sm:mb-4">
+          <div className="mb-1">
             {clockedIn && clockInTime ? (
               // Elapsed Time with different background colors
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-1 sm:gap-2">
                 {(() => {
                   const elapsed = calculateElapsedTime();
                   const [hours, minutes, seconds] = elapsed.split(':');
                   return (
                     <>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                      <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-primary bg-primary-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md shadow-sm">
                         {hours}
                       </span>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                      <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-gray-900">:</span>
+                      <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-primary bg-primary-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md shadow-sm">
                         {minutes}
                       </span>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                      <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-gray-900">:</span>
+                      <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-primary bg-primary-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md shadow-sm">
                         {seconds}
                       </span>
                     </>
@@ -451,37 +451,37 @@ export default function TimeTrackingWidget() {
               </div>
             ) : (
               // Current Time with different background colors
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-1 sm:gap-2">
                 {mounted && currentTime ? (
                   (() => {
                     const { hours, minutes, seconds, period } = formatTimeDisplay(currentTime);
                     return (
                       <>
-                        <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-primary bg-primary-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md shadow-sm">
                           {hours}
                         </span>
-                        <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
-                        <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-gray-900">:</span>
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-primary bg-primary-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md shadow-sm">
                           {minutes}
                         </span>
-                        <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
-                        <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-gray-900">:</span>
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-primary bg-primary-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md shadow-sm">
                           {seconds}
                         </span>
-                        <span className="text-2xl md:text-3xl font-primary font-bold text-primary ml-2">
+                        <span className="text-lg sm:text-xl md:text-2xl font-primary font-bold text-primary ml-1 sm:ml-2">
                           {period}
                         </span>
                       </>
                     );
                   })()
                 ) : (
-                  <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">--:--:--</span>
+                  <span className="text-2xl sm:text-3xl md:text-4xl font-primary font-bold text-gray-900">--:--:--</span>
                 )}
               </div>
             )}
           </div>
           <div>
-            <span className="text-sm font-secondary text-gray-500">
+            <span className="text-xs sm:text-sm font-secondary text-gray-500">
               {mounted && currentTime ? formatDate(currentTime) : '--- --, ----'}
             </span>
           </div>
@@ -489,8 +489,8 @@ export default function TimeTrackingWidget() {
 
         {/* Clocked In Details */}
         {clockedIn && clockInTime && (
-          <div className="text-center mb-6">
-            <p className="text-sm font-semibold text-gray-500">
+          <div className="text-center mb-3 sm:mb-4">
+            <p className="text-xs sm:text-sm font-semibold text-gray-500">
               Clocked in: <span className="font-bold text-gray-900">{formatClockInDate(clockInTime)} at {formatTimeOnly(clockInTime)}</span>
             </p>
           </div>
@@ -502,7 +502,7 @@ export default function TimeTrackingWidget() {
           disabled={loading}
           whileHover={{ scale: loading ? 1 : 1.02 }}
           whileTap={{ scale: loading ? 1 : 0.98 }}
-          className={`w-full py-4 rounded-xl font-semibold text-base transition-all shadow-lg flex items-center justify-center gap-2 mb-6 ${
+          className={`w-full py-2.5 sm:py-3 md:py-4 rounded-xl font-semibold text-sm sm:text-base transition-all shadow-lg flex items-center justify-center gap-2 mb-3 sm:mb-4 ${
             clockedIn
               ? 'bg-red-500 hover:bg-red-600 text-white'
               : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -511,41 +511,41 @@ export default function TimeTrackingWidget() {
           {loading ? (
             <>
               <LoadingDots size="sm" color="white" />
-              <span>Processing...</span>
+              <span className="text-xs sm:text-sm">Processing...</span>
             </>
           ) : clockedIn ? (
             <>
-              <div className="w-5 h-5 bg-white/20 rounded flex items-center justify-center">
-                <LogOut className="w-4 h-4" />
+              <div className="w-4 h-4 sm:w-5 sm:h-5 bg-white/20 rounded flex items-center justify-center">
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span>Clock Out</span>
+              <span className="text-xs sm:text-sm">Clock Out</span>
             </>
           ) : (
             <>
-              <div className="w-5 h-5 bg-white/20 rounded flex items-center justify-center">
-                <LogIn className="w-4 h-4" />
+              <div className="w-4 h-4 sm:w-5 sm:h-5 bg-white/20 rounded flex items-center justify-center">
+                <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span>Clock In</span>
+              <span className="text-xs sm:text-sm">Clock In</span>
             </>
           )}
         </motion.button>
 
         {/* Recent 3 Attendance History - Compact Single Line */}
-        <div className="border-t border-gray-200 pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <RotateCcw className="w-4 h-4 text-gray-600" />
-            <h3 className="text-sm font-primary font-semibold text-gray-900">Recent Attendance</h3>
+        <div className="border-t border-gray-200 pt-2 sm:pt-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
+            <h3 className="text-xs sm:text-sm font-primary font-semibold text-gray-900">Recent Attendance</h3>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5 sm:space-y-2">
             {attendanceLoading ? (
-              <div className="text-center py-4">
-                <LoadingDots size="sm" className="mb-2" />
-                <p className="text-xs text-gray-500 font-secondary">Loading...</p>
+              <div className="text-center py-2 sm:py-3">
+                <LoadingDots size="sm" className="mb-1" />
+                <p className="text-[10px] sm:text-xs text-gray-500 font-secondary">Loading...</p>
               </div>
             ) : recentAttendance.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-xs text-gray-500 font-secondary">No attendance records yet</p>
+              <div className="text-center py-2 sm:py-3">
+                <p className="text-[10px] sm:text-xs text-gray-500 font-secondary">No attendance records yet</p>
               </div>
             ) : (
               recentAttendance.slice(0, 3).map((record, index) => (
@@ -554,33 +554,33 @@ export default function TimeTrackingWidget() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="flex items-center justify-between p-1 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-1.5 sm:p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className={`p-1.5 rounded ${record.clockOut ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                      <CheckCircle className={`w-3.5 h-3.5 ${record.clockOut ? 'text-green-600' : 'text-yellow-600'}`} />
+                  <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
+                    <div className={`p-1 sm:p-1.5 rounded flex-shrink-0 ${record.clockOut ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                      <CheckCircle className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${record.clockOut ? 'text-green-600' : 'text-yellow-600'}`} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="text-gray-900 font-semibold">{formatDate(record.date)}</span>
-                        <span className="text-gray-400">•</span>
-                        <span className="text-gray-600 font-bold">{formatTimeOnly(record.clockIn)}</span>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] flex-wrap">
+                        <span className="text-gray-900 font-semibold whitespace-nowrap">{formatDate(record.date)}</span>
+                        <span className="text-gray-400 flex-shrink-0">•</span>
+                        <span className="text-gray-600 font-bold whitespace-nowrap">{formatTimeOnly(record.clockIn)}</span>
                         {record.clockOut && (
                           <>
-                            <span className="text-gray-400">-</span>
-                            <span className="text-gray-600 font-bold">{formatTimeOnly(record.clockOut)}</span>
+                            <span className="text-gray-400 flex-shrink-0">-</span>
+                            <span className="text-gray-600 font-bold whitespace-nowrap">{formatTimeOnly(record.clockOut)}</span>
                           </>
                         )}
                         {record.clockOut && (
                           <>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-gray-600 font-bold">
+                            <span className="text-gray-400 flex-shrink-0">•</span>
+                            <span className="text-gray-600 font-bold whitespace-nowrap">
                               {calculateDuration(record.clockIn, record.clockOut)}
                             </span>
                           </>
                         )}
                         {!record.clockOut && (
-                          <span className="text-yellow-600 font-bold ml-1">(Active)</span>
+                          <span className="text-yellow-600 font-bold whitespace-nowrap">(Active)</span>
                         )}
                       </div>
                     </div>

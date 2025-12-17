@@ -11,6 +11,7 @@
     "generate-splash": "node scripts/generate-splash-screens.js"
   },
   "dependencies": {
+    "@tabler/icons-react": "^3.36.0",
     "bcryptjs": "^2.4.3",
     "date-fns": "^3.3.1",
     "framer-motion": "^11.0.0",

@@ -6,21 +6,21 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import {
-  LayoutDashboard,
-  Users,
-  Calendar,
-  DollarSign,
-  Clock,
-  FileText,
-  LogOut,
-  Menu,
-  X,
-  User,
-  UserCog,
-  UserCircle,
-  MessageSquare,
-  CalendarDays,
-} from 'lucide-react';
+  IconLayoutDashboard,
+  IconUsers,
+  IconCalendar,
+  IconCurrencyDollar,
+  IconClock,
+  IconFileText,
+  IconLogout,
+  IconMenu2,
+  IconX,
+  IconUser,
+  IconUserCog,
+  IconUserCircle,
+  IconMessage,
+  IconCalendarEvent,
+} from '@tabler/icons-react';
 import Logo from './Logo';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
@@ -67,7 +67,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   // Verify that the user's role matches the expected role
   useEffect(() => {
     if (status === 'loading') return; // Still loading session
-    
+
     if (status === 'unauthenticated') {
       router.push('/');
       return;
@@ -75,7 +75,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
     if (session) {
       const userRole = (session.user as any)?.role;
-      
+
       // If role doesn't match, redirect to the correct dashboard
       if (userRole !== role) {
         if (userRole === 'admin') {
@@ -92,34 +92,34 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   }, [session, status, role, router]);
 
   const adminMenu = [
-    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { name: 'Feed', href: '/admin/feed', icon: MessageSquare },
-    { name: 'Employees', href: '/admin/employees', icon: Users },
-    { name: 'Team Management', href: '/admin/teams', icon: UserCog },
-    { name: 'Leave Management', href: '/admin/leaves', icon: Calendar },
-    { name: 'Attendance', href: '/admin/attendance', icon: Clock },
-    { name: 'Finance', href: '/admin/finance', icon: DollarSign },
-    { name: 'Profile', href: '/admin/profile', icon: UserCircle },
+    { name: 'Dashboard', href: '/admin', icon: IconLayoutDashboard },
+    { name: 'Feed', href: '/admin/feed', icon: IconMessage },
+    { name: 'Employees', href: '/admin/employees', icon: IconUsers },
+    { name: 'Team Management', href: '/admin/teams', icon: IconUserCog },
+    { name: 'Leave Management', href: '/admin/leaves', icon: IconCalendar },
+    { name: 'Attendance', href: '/admin/attendance', icon: IconClock },
+    { name: 'Finance', href: '/admin/finance', icon: IconCurrencyDollar },
+    { name: 'Profile', href: '/admin/profile', icon: IconUserCircle },
   ];
 
   const hrMenu = [
-    { name: 'Dashboard', href: '/hr', icon: LayoutDashboard },
-    { name: 'Feed', href: '/hr/feed', icon: MessageSquare },
-    { name: 'Employees', href: '/hr/employees', icon: Users },
-    { name: 'Team Management', href: '/hr/teams', icon: UserCog },
-    { name: 'Leave Management', href: '/hr/leaves', icon: Calendar },
-    { name: 'Attendance', href: '/hr/attendance', icon: Clock },
-    { name: 'Finance Reports', href: '/hr/finance', icon: DollarSign },
-    { name: 'Profile', href: '/hr/profile', icon: UserCircle },
+    { name: 'Dashboard', href: '/hr', icon: IconLayoutDashboard },
+    { name: 'Feed', href: '/hr/feed', icon: IconMessage },
+    { name: 'Employees', href: '/hr/employees', icon: IconUsers },
+    { name: 'Team Management', href: '/hr/teams', icon: IconUserCog },
+    { name: 'Leave Management', href: '/hr/leaves', icon: IconCalendar },
+    { name: 'Attendance', href: '/hr/attendance', icon: IconClock },
+    { name: 'Finance Reports', href: '/hr/finance', icon: IconCurrencyDollar },
+    { name: 'Profile', href: '/hr/profile', icon: IconUserCircle },
   ];
 
   const employeeMenu = [
-    { name: 'Dashboard', href: '/employee', icon: LayoutDashboard },
-    { name: 'Feed', href: '/employee/feed', icon: MessageSquare },
-    { name: 'Attendance', href: '/employee/attendance', icon: Clock },
-    { name: 'Leave Management', href: '/employee/leaves', icon: Calendar },
-    { name: 'Salary Slips', href: '/employee/finance', icon: DollarSign },
-    { name: 'Profile', href: '/employee/profile', icon: UserCircle },
+    { name: 'Dashboard', href: '/employee', icon: IconLayoutDashboard },
+    { name: 'Feed', href: '/employee/feed', icon: IconMessage },
+    { name: 'Attendance', href: '/employee/attendance', icon: IconClock },
+    { name: 'Leave Management', href: '/employee/leaves', icon: IconCalendar },
+    { name: 'Salary Slips', href: '/employee/finance', icon: IconCurrencyDollar },
+    { name: 'Profile', href: '/employee/profile', icon: IconUserCircle },
   ];
 
   const menu = role === 'admin' ? adminMenu : role === 'hr' ? hrMenu : employeeMenu;
@@ -171,19 +171,18 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
   return (
     <div className="min-h-screen bg-gray-50">
-        {/* Mobile sidebar backdrop */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        {/* Sidebar */}
-        <aside
-        className={`fixed top-0 left-0 h-full w-56 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-56 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="flex flex-col h-full">
           <div className="p-4 border-b">
@@ -204,11 +203,10 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     key={item.name}
                     href={item.href}
                     whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 transition-colors text-sm ${
-                      isActive
+                    className={`flex items-center gap-2.5 px-3 py-2 transition-colors text-sm ${isActive
                         ? 'bg-primary-100 border-l-[5px] border-primary text-primary font-medium'
                         : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                      }`}
                     onClick={() => setSidebarOpen(false)}
                   >
                     <Icon className="w-4 h-4" />
@@ -216,7 +214,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                   </motion.a>
                 );
               })}
-            
+
             {/* Separator with Personalize section */}
             <div className="pt-3 mt-3 border-t border-gray-200">
               <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider font-secondary mb-1">
@@ -232,11 +230,10 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                       key={item.name}
                       href={item.href}
                       whileHover={{ x: 2 }}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                        isActive
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${isActive
                           ? 'bg-primary-100 text-primary font-medium'
                           : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                        }`}
                       onClick={() => setSidebarOpen(false)}
                     >
                       <Icon className="w-4 h-4" />
@@ -250,40 +247,37 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                   <motion.a
                     href="/hr/leave-request"
                     whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      pathname === '/hr/leave-request'
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/leave-request'
                         ? 'bg-primary-100 text-primary font-medium'
                         : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                      }`}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <CalendarDays className="w-4 h-4" />
+                    <IconCalendarEvent className="w-4 h-4" />
                     <span className="font-secondary">Leave Request</span>
                   </motion.a>
                   <motion.a
                     href="/hr/my-attendance"
                     whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      pathname === '/hr/my-attendance'
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/my-attendance'
                         ? 'bg-primary-100 text-primary font-medium'
                         : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                      }`}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Clock className="w-4 h-4" />
+                    <IconClock className="w-4 h-4" />
                     <span className="font-secondary">Attendance</span>
                   </motion.a>
                   <motion.a
                     href="/hr/salary"
                     whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      pathname === '/hr/salary'
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/salary'
                         ? 'bg-primary-100 text-primary font-medium'
                         : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                      }`}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <DollarSign className="w-4 h-4" />
+                    <IconCurrencyDollar className="w-4 h-4" />
                     <span className="font-secondary">Salary Slip</span>
                   </motion.a>
                 </>
@@ -307,21 +301,21 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors text-sm"
             >
-              <LogOut className="w-4 h-4" />
+              <IconLogout className="w-4 h-4" />
               <span className="font-secondary">Logout</span>
             </button>
           </div>
         </div>
-        </aside>
+      </aside>
 
-        {/* Main content */}
-        <div className="lg:pl-56">
+      {/* Main content */}
+      <div className="lg:pl-56">
 
         {/* Mobile Bottom Navigation Bar - Glass Effect */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40">
-          <div className="bg-white/10 border border-t border-white backdrop-blur-lg shadow-xl py-1 px-2">
+          <div className="bg-primary/80 border border-t border-primary backdrop-blur-lg shadow-xl py-3 pb-6 px-2">
             <div className="overflow-x-auto scrollbar-hide">
-              <div className="flex items-center gap-1 px-2 py-1.5 min-w-max">
+              <div className="flex items-center gap-1 px-2 py-1.5 min-w-max justify-center">
                 {menu
                   .filter((item) => item.name !== 'Profile') // Exclude Profile from menu items
                   .map((item) => {
@@ -332,54 +326,39 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                         key={item.name}
                         href={item.href}
                         whileTap={{ scale: 0.95 }}
-                        className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-[70px] ${
-                          isActive
-                            ? 'bg-primary/10 text-primary'
-                            : 'text-gray-600 hover:bg-gray-100/50'
-                        }`}
+                        className={`flex items-center justify-center px-4 py-3 rounded-xl transition-all ${isActive
+                            ? 'bg-primary/40 text-white'
+                            : 'text-gray-400 hover:bg-primary/10'
+                          }`}
                       >
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-gray-600'}`} />
-                        <span className="text-[10px] font-secondary font-medium leading-tight text-center">
-                          {item.name}
-                        </span>
+                        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-400'}`} />
                       </motion.a>
                     );
                   })}
-                
+
                 {/* User Profile Picture */}
                 <motion.a
                   href={`/${role}/profile`}
                   whileTap={{ scale: 0.95 }}
-                  className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-xl transition-all min-w-[50px] ${
-                    pathname === `/${role}/profile`
+                  className={`flex items-center justify-center px-3 py-2 rounded-xl transition-all ${pathname === `/${role}/profile`
                       ? 'bg-primary/10'
                       : ''
-                  }`}
+                    }`}
                 >
                   <UserAvatar
                     name={userName}
                     image={userImage}
                     size="sm"
                   />
-                  <span className={`text-[9px] font-secondary font-medium leading-tight text-center ${
-                    pathname === `/${role}/profile`
-                      ? 'text-primary'
-                      : 'text-gray-600'
-                  }`}>
-                    Profile
-                  </span>
                 </motion.a>
 
                 {/* Logout Button */}
                 <motion.button
                   onClick={handleLogout}
                   whileTap={{ scale: 0.95 }}
-                  className="flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-[60px] text-red-600 hover:bg-red-50/50"
+                  className="flex items-center justify-center px-4 py-3 rounded-xl transition-all text-red-600 hover:bg-red-50/50"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span className="text-[10px] font-secondary font-medium leading-tight text-center">
-                    Logout
-                  </span>
+                  <IconLogout className="w-5 h-5" />
                 </motion.button>
               </div>
             </div>

@@ -32,7 +32,7 @@ export function showBrowserNotification(
 
   const notificationOptions: NotificationOptions = {
     body,
-    icon: options?.icon || '/assets/mobileicon.jpg',
+    icon: options?.icon || '/assets/maverixicon.png',
     badge: options?.badge || '/assets/maverixicon.png',
     tag: options?.tag || 'maverix-notification',
     data: options?.data || {},

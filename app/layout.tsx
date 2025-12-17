@@ -62,6 +62,15 @@ export default function RootLayout({
           type="image/png"
         />
         
+        {/* Apple Touch Icon */}
+        <link
+          rel="apple-touch-icon"
+          href="/assets/maverixicon.png"
+        />
+        
+        {/* Manifest */}
+        <link rel="manifest" href="/manifest" />
+        
         {/* External Fonts */}
         <link
           href="https://fonts.cdnfonts.com/css/gotham"

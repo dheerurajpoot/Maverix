@@ -45,7 +45,7 @@ export async function sendPushNotificationToUser(
     const notificationData = {
       title: payload.title,
       body: payload.body,
-      icon: payload.icon || '/assets/mobileicon.jpg',
+      icon: payload.icon || '/assets/maverixicon.png',
       badge: payload.badge || '/assets/maverixicon.png',
       tag: payload.tag || 'maverix-notification',
       data: payload.data || {},

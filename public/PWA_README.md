@@ -8,7 +8,7 @@ This application is configured as a Progressive Web App (PWA) that can be instal
 - ✅ **Offline Support**: Service worker caches assets for offline access
 - ✅ **App-like Experience**: Standalone display mode
 - ✅ **Splash Screens**: Custom splash screens for iOS devices
-- ✅ **App Icons**: Custom icons using mobileicon.jpg
+- ✅ **App Icons**: Custom icons using maverixicon.png
 
 ## Installation
 
@@ -47,7 +47,7 @@ This application is configured as a Progressive Web App (PWA) that can be instal
 
 ### App Details
 - **Name**: MaveriX
-- **App Icon**: `/assets/mobileicon.jpg`
+- **App Icon**: `/assets/maverixicon.png`
 - **Splash Screen**: Black background with `maverixicon.png` centered
 - **Theme Color**: #6366f1 (Indigo)
 

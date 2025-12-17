@@ -390,7 +390,7 @@ export async function POST(request: NextRequest) {
               await sendPushNotificationToUsers(adminAndHRIds, {
                 title: 'New Leave Request',
                 body: `${employeeName} requested ${daysText} leave for ${dateText}`,
-                icon: '/assets/mobileicon.jpg',
+                icon: '/assets/maverixicon.png',
                 badge: '/assets/maverixicon.png',
                 tag: `leave-request-${leave._id}`,
                 data: {

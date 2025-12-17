@@ -23,7 +23,7 @@ try {
   process.exit(1);
 }
 
-const sourceIcon = path.join(__dirname, '../public/assets/mobileicon.jpg');
+const sourceIcon = path.join(__dirname, '../public/assets/maverixicon.png');
 const splashImageUrl = 'https://static.vecteezy.com/system/resources/previews/028/586/346/large_2x/photography-studio-backdrop-for-a-portrait-abstract-red-orange-grunge-wallpaper-muslin-fabric-texture-for-studio-background-photo.jpg';
 const iconsDir = path.join(__dirname, '../public/icons');
 
@@ -72,7 +72,7 @@ const splashSizes = [
 async function generateIcons() {
   if (!fs.existsSync(sourceIcon)) {
     console.error(`Source icon not found: ${sourceIcon}`);
-    console.log('Please ensure mobileicon.jpg exists in public/assets/');
+    console.log('Please ensure maverixicon.png exists in public/assets/');
     process.exit(1);
   }
 

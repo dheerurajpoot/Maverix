@@ -58,7 +58,7 @@ export async function createNotification(data: {
       await sendPushNotificationToUser(userId, {
         title: data.title,
         body: data.message,
-        icon: '/assets/mobileicon.jpg',
+        icon: '/assets/maverixicon.png',
         badge: '/assets/maverixicon.png',
         tag: `notification-${notification._id}`,
         data: {

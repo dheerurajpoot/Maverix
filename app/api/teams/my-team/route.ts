@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
         { members: userObjectId },
       ],
     })
-      .populate('leader', 'name email profileImage mobileNumber')
-      .populate('members', 'name email profileImage mobileNumber')
+      .populate('leader', 'name email profileImage mobileNumber designation')
+      .populate('members', 'name email profileImage mobileNumber designation')
       .sort({ createdAt: -1 });
 
     const response = NextResponse.json({ teams });

@@ -67,7 +67,7 @@ export default function GlobalNotificationListener() {
 
             // Show browser notification immediately
             showBrowserNotification(latestNotification.title, latestNotification.message, {
-              icon: '/assets/mobileicon.jpg',
+              icon: '/assets/maverixicon.png',
               badge: '/assets/maverixicon.png',
               tag: `notification-${latestNotification._id}`,
               data: {

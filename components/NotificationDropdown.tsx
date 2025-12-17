@@ -89,7 +89,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
               // Use direct Notification API
               new Notification(notification.title, {
                 body: notification.message,
-                icon: '/assets/mobileicon.jpg',
+                icon: '/assets/maverixicon.png',
                 badge: '/assets/maverixicon.png',
                 tag: `notification-${notification._id}`,
                 data: {

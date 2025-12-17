@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Mail, Phone, User, Calendar } from 'lucide-react';
+import { Search, X, Mail, Phone, User, Calendar, Briefcase } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
 import Image from 'next/image';
@@ -16,6 +16,7 @@ interface Employee {
   profileImage?: string;
   role: string;
   dateOfBirth?: string;
+  designation?: string;
 }
 
 export default function EmployeeSearch() {
@@ -212,108 +213,137 @@ export default function EmployeeSearch() {
       {/* Employee Detail Modal */}
       <AnimatePresence>
         {selectedEmployee && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div 
+            className="fixed inset-0 bg-gradient-to-br from-black/50 via-black/40 to-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedEmployee(null)}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white/90 backdrop-blur-xl rounded-md p-6 w-full max-w-md border border-white/20"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative bg-gradient-to-br from-white/95 via-white/90 to-white/95 backdrop-blur-2xl rounded-2xl p-5 w-full max-w-sm border border-white/30 shadow-2xl overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-primary font-bold text-gray-800">Employee Details</h2>
-                <button
-                  onClick={() => setSelectedEmployee(null)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+              {/* Glass effect overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
+              
+              {/* Close button */}
+              <button
+                onClick={() => setSelectedEmployee(null)}
+                className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white/90 backdrop-blur-sm border border-white/30 text-gray-600 hover:text-gray-800 transition-all duration-200 shadow-sm"
+              >
+                <X className="w-4 h-4" />
+              </button>
 
-              <div className="space-y-4">
-                {/* Profile Photo */}
-                <div className="flex justify-center">
-                  {selectedEmployee.profileImage ? (
-                    <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-primary/20">
-                      <Image
-                        src={selectedEmployee.profileImage}
-                        alt={selectedEmployee.name}
-                        fill
-                        className="object-cover"
-                        sizes="96px"
-                      />
+              <div className="relative space-y-4">
+                {/* Profile Photo & Name Section */}
+                <div className="flex flex-col items-center pt-2">
+                  <div className="relative">
+                    {selectedEmployee.profileImage ? (
+                      <div className="relative w-20 h-20 rounded-full overflow-hidden border-[3px] border-white/50 shadow-lg ring-2 ring-primary/20">
+                        <Image
+                          src={selectedEmployee.profileImage}
+                          alt={selectedEmployee.name}
+                          fill
+                          className="object-cover"
+                          sizes="80px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-[3px] border-white/50 shadow-lg ring-2 ring-primary/20">
+                        <span className="text-xl font-primary font-bold text-primary">
+                          {selectedEmployee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </span>
+                      </div>
+                    )}
+                    {employeesOnLeaveToday.includes(selectedEmployee._id) && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-orange-500 rounded-full border-2 border-white flex items-center justify-center shadow-md">
+                        <Calendar className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-primary font-bold text-gray-800 mt-3 text-center">
+                    {selectedEmployee.name}
+                  </h3>
+                  {selectedEmployee.designation && (
+                    <p className="text-xs font-semibold text-primary mt-1 px-3 py-1 bg-primary/10 rounded-full font-secondary">
+                      {selectedEmployee.designation}
+                    </p>
+                  )}
+                  {employeesOnLeaveToday.includes(selectedEmployee._id) && (
+                    <span className="mt-2 px-2.5 py-1 text-[10px] font-semibold rounded-full bg-orange-100 text-orange-700 flex items-center gap-1 font-secondary">
+                      <Calendar className="w-2.5 h-2.5" />
+                      On Leave
+                    </span>
+                  )}
+                </div>
+
+                {/* Info Grid - Compact */}
+                <div className="space-y-2.5 bg-white/40 backdrop-blur-sm rounded-xl p-3.5 border border-white/30">
+                  {/* Email */}
+                  <div className="flex items-center gap-2.5 py-1.5">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-100/80 flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-blue-600" />
                     </div>
-                  ) : (
-                    <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
-                      <span className="text-2xl font-primary font-semibold text-primary">
-                        {selectedEmployee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-gray-500 font-secondary mb-0.5">Email</p>
+                      <p className="text-xs font-medium text-gray-800 font-secondary truncate break-all">
+                        {selectedEmployee.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mobile Number */}
+                  {selectedEmployee.mobileNumber && (
+                    <div className="flex items-center gap-2.5 py-1.5">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-green-100/80 flex items-center justify-center">
+                        <Phone className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-gray-500 font-secondary mb-0.5">Mobile</p>
+                        <p className="text-xs font-medium text-gray-800 font-secondary">
+                          {selectedEmployee.mobileNumber}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Date of Birth */}
+                  {selectedEmployee.dateOfBirth && (
+                    <div className="flex items-center gap-2.5 py-1.5">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-purple-100/80 flex items-center justify-center">
+                        <Calendar className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-gray-500 font-secondary mb-0.5">Date of Birth</p>
+                        <p className="text-xs font-medium text-gray-800 font-secondary">
+                          {format(new Date(selectedEmployee.dateOfBirth), 'MMM dd, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Designation */}
+                  {selectedEmployee.designation && (
+                    <div className="flex items-center gap-2.5 py-1.5">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-100/80 flex items-center justify-center">
+                        <Briefcase className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-gray-500 font-secondary mb-0.5">Designation</p>
+                        <p className="text-xs font-medium text-gray-800 font-secondary">
+                          {selectedEmployee.designation}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Name */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
-                    <User className="w-3 h-3 inline-block mr-1" />
-                    Full Name
-                  </label>
-                  <p className="text-sm font-semibold text-gray-800 font-primary">
-                    {selectedEmployee.name}
-                  </p>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
-                    <Mail className="w-3 h-3 inline-block mr-1" />
-                    Email Address
-                  </label>
-                  <p className="text-sm text-gray-800 font-secondary">
-                    {selectedEmployee.email}
-                  </p>
-                </div>
-
-                {/* Mobile Number */}
-                {selectedEmployee.mobileNumber && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
-                      <Phone className="w-3 h-3 inline-block mr-1" />
-                      Mobile Number
-                    </label>
-                    <p className="text-sm text-gray-800 font-secondary">
-                      {selectedEmployee.mobileNumber}
-                    </p>
-                  </div>
-                )}
-
-                {/* Date of Birth */}
-                {selectedEmployee.dateOfBirth && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
-                      <Calendar className="w-3 h-3 inline-block mr-1" />
-                      Date of Birth
-                    </label>
-                    <p className="text-sm text-gray-800 font-secondary">
-                      {format(new Date(selectedEmployee.dateOfBirth), 'MMM dd, yyyy')}
-                    </p>
-                  </div>
-                )}
-
-                {/* Role */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
-                    Role
-                  </label>
-                  <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize font-secondary">
-                    {selectedEmployee.role}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-gray-200">
+                {/* Close Button */}
                 <button
                   onClick={() => setSelectedEmployee(null)}
-                  className="w-full px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-secondary"
+                  className="w-full px-4 py-2.5 text-sm font-semibold bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl hover:shadow-lg transition-all duration-200 font-secondary shadow-md hover:shadow-primary/20"
                 >
                   Close
                 </button>

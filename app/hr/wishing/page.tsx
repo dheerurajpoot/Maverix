@@ -58,6 +58,7 @@ export default function HrWishingPage() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [expandedHistory, setExpandedHistory] = useState(true);
   const [viewEmail, setViewEmail] = useState<EmailHistory | null>(null);
+  const [openedFilter, setOpenedFilter] = useState<'all' | 'opened' | 'sent'>('all');
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -634,51 +635,128 @@ export default function HrWishingPage() {
 
                 {/* Recipients */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">Recipients ({viewEmail.userIds?.length || 0})</label>
-                  <div className="space-y-2">
-                    {viewEmail.userIds && viewEmail.userIds.length > 0 ? (
-                      viewEmail.userIds.map((user: any) => {
-                        const userIdStr = String(user._id);
-                        const openedByIds = viewEmail.openedByIds || [];
-                        const openedByArray = viewEmail.openedBy || [];
-                        
-                        const isOpenedByIds = openedByIds.some((id: any) => String(id) === userIdStr);
-                        const isOpenedByObjects = openedByArray.some((item: any) => {
-                          const itemId = item._id ? String(item._id) : String(item);
-                          return itemId === userIdStr;
-                        });
-                        
-                        const isOpened = isOpenedByIds || isOpenedByObjects;
+                  {(() => {
+                    // Calculate counts for each filter
+                    const totalRecipients = viewEmail.userIds?.length || 0;
+                    const openedCount = viewEmail.userIds?.filter((user: any) => {
+                      const userIdStr = String(user._id);
+                      const openedByIds = viewEmail.openedByIds || [];
+                      const openedByArray = viewEmail.openedBy || [];
+                      
+                      const isOpenedByIds = openedByIds.some((id: any) => String(id) === userIdStr);
+                      const isOpenedByObjects = openedByArray.some((item: any) => {
+                        const itemId = item._id ? String(item._id) : String(item);
+                        return itemId === userIdStr;
+                      });
+                      
+                      return isOpenedByIds || isOpenedByObjects;
+                    }).length || 0;
+                    const sentCount = totalRecipients - openedCount;
 
-                        return (
-                          <div key={user._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                            <div className="flex items-center gap-3">
-                              <UserAvatar name={user.name} image={user.profileImage} size="sm" />
-                              <div>
-                                <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                                <p className="text-xs text-gray-600">{user.email}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {isOpened ? (
-                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
-                                  <span className="text-green-600 font-bold">✓✓</span>
-                                  <span>Opened</span>
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold flex items-center gap-1">
-                                  <span className="text-gray-400">✓</span>
-                                  <span>Sent</span>
-                                </span>
-                              )}
-                            </div>
+                    return (
+                      <>
+                        <div className="mb-2">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">Recipients</label>
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => setOpenedFilter('all')}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                                openedFilter === 'all'
+                                  ? 'bg-primary text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              All ({totalRecipients})
+                            </button>
+                            <button
+                              onClick={() => setOpenedFilter('opened')}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                                openedFilter === 'opened'
+                                  ? 'bg-primary text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              Opened ({openedCount})
+                            </button>
+                            <button
+                              onClick={() => setOpenedFilter('sent')}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                                openedFilter === 'sent'
+                                  ? 'bg-primary text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              Sent ({sentCount})
+                            </button>
                           </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-gray-500">No recipients found</p>
-                    )}
-                  </div>
+                        </div>
+                        <div className="space-y-2">
+                          {(() => {
+                            const filteredRecipients = viewEmail.userIds?.filter((user: any) => {
+                              const userIdStr = String(user._id);
+                              const openedByIds = viewEmail.openedByIds || [];
+                              const openedByArray = viewEmail.openedBy || [];
+                              
+                              const isOpenedByIds = openedByIds.some((id: any) => String(id) === userIdStr);
+                              const isOpenedByObjects = openedByArray.some((item: any) => {
+                                const itemId = item._id ? String(item._id) : String(item);
+                                return itemId === userIdStr;
+                              });
+                              
+                              const isOpened = isOpenedByIds || isOpenedByObjects;
+                              
+                              if (openedFilter === 'opened') return isOpened;
+                              if (openedFilter === 'sent') return !isOpened;
+                              return true; // all
+                            }) || [];
+
+                            return filteredRecipients.length > 0 ? (
+                              filteredRecipients.map((user: any) => {
+                              const userIdStr = String(user._id);
+                              const openedByIds = viewEmail.openedByIds || [];
+                              const openedByArray = viewEmail.openedBy || [];
+                              
+                              const isOpenedByIds = openedByIds.some((id: any) => String(id) === userIdStr);
+                              const isOpenedByObjects = openedByArray.some((item: any) => {
+                                const itemId = item._id ? String(item._id) : String(item);
+                                return itemId === userIdStr;
+                              });
+                              
+                              const isOpened = isOpenedByIds || isOpenedByObjects;
+
+                              return (
+                                <div key={user._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                  <div className="flex items-center gap-3">
+                                    <UserAvatar name={user.name} image={user.profileImage} size="sm" />
+                                    <div>
+                                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                                      <p className="text-xs text-gray-600">{user.email}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {isOpened ? (
+                                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                                        <span className="text-green-600 font-bold">✓✓</span>
+                                        <span>Opened</span>
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold flex items-center gap-1">
+                                        <span className="text-gray-400">✓</span>
+                                        <span>Sent</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                            ) : (
+                              <p className="text-sm text-gray-500">No recipients found</p>
+                            );
+                          })()}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* HTML Content Preview */}

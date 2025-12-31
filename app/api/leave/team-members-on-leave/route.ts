@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
       userId: { $in: teamMemberIds },
       status: { $in: ['pending', 'approved'] },
       allottedBy: { $exists: false }, // Exclude allotted leaves - only show actual leave requests
+      reason: { $not: { $regex: /leave.*deduction/i } }, // Exclude deduction history entries
       // Leave starts before or on the end date and ends on or after the start date
       startDate: { $lte: end },
       endDate: { $gte: start },

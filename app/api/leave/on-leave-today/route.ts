@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       allottedBy: { $exists: false }, // Exclude allotted leaves - only actual leave requests
       startDate: { $lte: endOfToday },
       endDate: { $gte: today },
-      reason: { $not: { $regex: /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct/i } }, // Exclude penalty-related leaves
+      reason: { $not: { $regex: /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct|leave.*deduction/i } }, // Exclude penalty-related leaves and deduction history
     })
       .select('userId status startDate endDate allottedBy reason') // Include fields for verification
       .lean();

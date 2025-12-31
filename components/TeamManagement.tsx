@@ -52,6 +52,7 @@ export default function TeamManagement() {
   const [deleting, setDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [teamsLoading, setTeamsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [formData, setFormData] = useState({
@@ -70,6 +71,7 @@ export default function TeamManagement() {
   const toast = useToast();
 
   const fetchTeams = useCallback(async () => {
+    setTeamsLoading(true);
     try {
       const res = await fetch('/api/teams');
       const data = await res.json();
@@ -80,6 +82,8 @@ export default function TeamManagement() {
       }
     } catch (err: any) {
       toast.error('An error occurred');
+    } finally {
+      setTeamsLoading(false);
     }
   }, [toast]);
 
@@ -367,7 +371,12 @@ export default function TeamManagement() {
       </div>
 
       {/* Teams List */}
-      {filteredTeams.length === 0 ? (
+      {teamsLoading && teams.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 text-center">
+          <LoadingDots />
+          <p className="text-gray-600 font-secondary mt-4">Loading teams...</p>
+        </div>
+      ) : filteredTeams.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 text-center">
           <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 font-secondary">

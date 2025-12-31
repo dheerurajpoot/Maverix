@@ -113,6 +113,23 @@ export async function PUT(
             allottedLeave.remainingHours = Math.floor(newRemainingMinutes / 60);
             allottedLeave.remainingMinutes = newRemainingMinutes % 60;
             await allottedLeave.save();
+
+            // Create deduction history entry for shortday leave (not treated as "on leave")
+            const deductionHistory = new Leave({
+              userId: leave.userId,
+              leaveType: leave.leaveType,
+              hours: requestedHours,
+              minutes: requestedMinutes,
+              startDate: leave.startDate,
+              endDate: leave.endDate,
+              reason: `Leave deduction: ${requestedHours}h ${requestedMinutes}m deducted from allotted ${leaveTypeDoc?.name || 'leave'} balance`,
+              status: 'approved',
+              allottedBy: (session.user as any).id, // Mark as system-generated deduction history
+              allottedAt: new Date(),
+              approvedBy: (session.user as any).id,
+              approvedAt: new Date(),
+            });
+            await deductionHistory.save();
           } else if (status === 'rejected' && previousStatus === 'approved') {
             // Restore balance if rejecting a previously approved leave
             const approvedRequests = await Leave.find({
@@ -160,6 +177,22 @@ export async function PUT(
             // Update remainingDays in allotted leave
             allottedLeave.remainingDays = actualRemainingDays - requestedDays;
             await allottedLeave.save();
+
+            // Create deduction history entry (not treated as "on leave")
+            const deductionHistory = new Leave({
+              userId: leave.userId,
+              leaveType: leave.leaveType,
+              days: requestedDays,
+              startDate: leave.startDate,
+              endDate: leave.endDate,
+              reason: `Leave deduction: ${requestedDays} day(s) deducted from allotted ${leaveTypeDoc?.name || 'leave'} balance`,
+              status: 'approved',
+              allottedBy: (session.user as any).id, // Mark as system-generated deduction history
+              allottedAt: new Date(),
+              approvedBy: (session.user as any).id,
+              approvedAt: new Date(),
+            });
+            await deductionHistory.save();
           } else if (status === 'rejected' && previousStatus === 'approved') {
             // Restore balance if rejecting a previously approved leave
             const approvedRequests = await Leave.find({

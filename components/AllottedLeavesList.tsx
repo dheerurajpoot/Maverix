@@ -176,7 +176,7 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
               placeholder="Search by employee or leave type..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
+              className="w-full pl-10 pr-4 py-2 text-sm text-gray-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-gray-100"
             />
           </div>
 
@@ -185,7 +185,7 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
             <select
               value={filterEmployee}
               onChange={(e) => setFilterEmployee(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white appearance-none"
+              className="w-full pl-10 pr-4 py-2 text-sm text-gray-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-gray-100"
             >
               <option value="">All Employees</option>
               {employees.map((emp) => (
@@ -199,7 +199,7 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
+            className="w-full px-4 py-2 text-sm text-gray-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-gray-100"
           >
             <option value="all">All Status</option>
             <option value="approved">Approved</option>
@@ -226,7 +226,7 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                 key={userId}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="border border-gray-200 rounded-lg p-3 hover:border-primary/50 transition-colors"
+                className="bg-gray-100 rounded-lg p-3 hover:border-primary/50 transition-colors"
                 >
                 {/* Employee Header */}
                 <div className="flex items-center justify-between mb-3">
@@ -264,7 +264,7 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                       key={leave._id}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="group relative bg-gray-50 rounded-lg px-2.5 py-1.5 border border-gray-200 hover:border-primary/30 transition-colors flex items-center gap-2"
+                      className="group relative bg-white rounded-lg px-2.5 py-1.5 hover:border-primary/30 transition-colors flex items-center gap-2"
                     >
                       <span className="text-xs font-medium text-gray-800 capitalize font-secondary">
                         {typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType}

@@ -147,7 +147,7 @@ p, span, div, a, button, input, textarea, select, label,
 
 /* Dashboard Header Image */
 .dashboard-header-image {
-  background-image: url('/assets/headerbg.jpg');
+  background-image: url('/assets/bg-winter.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

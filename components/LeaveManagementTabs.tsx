@@ -56,9 +56,9 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
-  const [selectedLeaveTypes, setSelectedLeaveTypes] = useState<{ 
-    leaveTypeId: string; 
-    leaveTypeName: string; 
+  const [selectedLeaveTypes, setSelectedLeaveTypes] = useState<{
+    leaveTypeId: string;
+    leaveTypeName: string;
     days: string;
     hours?: string;
     minutes?: string;
@@ -194,10 +194,10 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     } else {
       // Check if this is a shortday leave type
       const leaveTypeName = leaveType.name?.toLowerCase() || '';
-      const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                   leaveTypeName.includes('short-day') || 
-                                   leaveTypeName.includes('short day');
-      
+      const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+        leaveTypeName.includes('short-day') ||
+        leaveTypeName.includes('short day');
+
       if (isShortDayLeaveType) {
         setSelectedLeaveTypes((prev) => [
           ...prev,
@@ -256,14 +256,14 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     setEditingEmployeeId(employeeId);
     setEditingEmployeeLeaves(employeeLeaves);
     setSelectedEmployees([employeeId]);
-    
+
     // Map employee leaves to selected leave types format
     const preSelectedLeaveTypes = employeeLeaves.map((leave) => {
       const leaveTypeName = typeof leave.leaveType === 'object' ? leave.leaveType?.name?.toLowerCase() || '' : '';
-      const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                   leaveTypeName.includes('short-day') || 
-                                   leaveTypeName.includes('short day');
-      
+      const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+        leaveTypeName.includes('short-day') ||
+        leaveTypeName.includes('short day');
+
       if (isShortDayLeaveType && (leave as any).hours !== undefined) {
         return {
           leaveTypeId: typeof leave.leaveType === 'object' ? leave.leaveType._id : leave.leaveType,
@@ -280,7 +280,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
         };
       }
     });
-    
+
     setSelectedLeaveTypes(preSelectedLeaveTypes);
     setShowAllotModal(true);
   };
@@ -301,17 +301,17 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     // Validate all leave types have required fields entered
     const invalidLeaveTypes = selectedLeaveTypes.filter((lt) => {
       const leaveTypeName = lt.leaveTypeName?.toLowerCase() || '';
-      const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                   leaveTypeName.includes('short-day') || 
-                                   leaveTypeName.includes('short day');
-      
+      const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+        leaveTypeName.includes('short-day') ||
+        leaveTypeName.includes('short day');
+
       if (isShortDayLeaveType) {
         // For shortday leave types, check hours/minutes
         const hoursStr = lt.hours?.trim() || '';
         const minutesStr = lt.minutes?.trim() || '';
         const hours = hoursStr !== '' ? parseInt(hoursStr) : 0;
         const minutes = minutesStr !== '' ? parseInt(minutesStr) : 0;
-        
+
         // Check if both are 0 or if parsing failed
         if (isNaN(hours) && isNaN(minutes)) {
           return true; // Invalid - both are NaN
@@ -325,7 +325,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
         return isNaN(days) || days <= 0; // Invalid - NaN or <= 0
       }
     });
-    
+
     if (invalidLeaveTypes.length > 0) {
       toast.error('Please enter valid values for all selected leave types (days for regular leaves, hours/minutes for shortday leaves)');
       return;
@@ -347,28 +347,28 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
       for (const userId of selectedEmployees) {
         for (const lt of selectedLeaveTypes) {
           const leaveTypeName = lt.leaveTypeName?.toLowerCase() || '';
-          const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                       leaveTypeName.includes('short-day') || 
-                                       leaveTypeName.includes('short day');
-          
+          const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+            leaveTypeName.includes('short-day') ||
+            leaveTypeName.includes('short day');
+
           if (isShortDayLeaveType) {
             // For shortday leave types, send hours and minutes
             const hoursStr = lt.hours?.trim() || '';
             const minutesStr = lt.minutes?.trim() || '';
             const hoursValue = hoursStr !== '' ? parseInt(hoursStr) : 0;
             const minutesValue = minutesStr !== '' ? parseInt(minutesStr) : 0;
-            
+
             // Ensure at least one is greater than 0 (validation should have caught this, but double-check)
             if (isNaN(hoursValue) && isNaN(minutesValue)) {
               console.error('Invalid shortday leave: both hours and minutes are NaN', lt);
               continue; // Skip this allocation
             }
-            
+
             if (hoursValue === 0 && minutesValue === 0) {
               console.error('Invalid shortday leave: both hours and minutes are 0', lt);
               continue; // Skip this allocation
             }
-            
+
             allocations.push({
               userId,
               leaveType: lt.leaveTypeId,
@@ -509,25 +509,25 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
   // Also exclude penalty-related leaves
   const leaveRequests = useMemo(() => {
     if (!leaves || leaves.length === 0) return [];
-    
+
     return leaves.filter((leave) => {
       if (leave.allottedBy) return false; // Exclude allotted leaves
-      
+
       // Exclude penalty-related leaves (leaves deducted for late clock-in penalties)
       if (leave.reason && /penalty|late.*clock.*in|exceeded.*max.*late/i.test(leave.reason)) {
         return false;
       }
-      
+
       // For HR role, only show employee leave requests (exclude HR users' requests)
       if (role === 'hr' && session?.user) {
-        const userId = typeof leave.userId === 'object' && leave.userId?._id 
-          ? leave.userId._id.toString() 
+        const userId = typeof leave.userId === 'object' && leave.userId?._id
+          ? leave.userId._id.toString()
           : leave.userId.toString();
         const currentUserId = (session.user as any)?.id;
-        
+
         // Exclude HR's own leave requests
         if (userId === currentUserId) return false;
-        
+
         // Check if the user is an employee by checking the employees list
         // If the user is in the employees list, they're an employee (not HR)
         if (employees && employees.length > 0) {
@@ -535,7 +535,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
           if (!isEmployee) return false; // Exclude if not in employees list (likely HR or admin)
         }
       }
-      
+
       return true;
     });
   }, [leaves, role, session, employees]);
@@ -547,31 +547,28 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('requests')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'requests'
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'requests'
                 ? 'text-primary border-b-2 border-primary bg-primary-50'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+              }`}
           >
             Leave Requests ({leaveRequests.length})
           </button>
           <button
             onClick={() => setActiveTab('types')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'types'
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'types'
                 ? 'text-primary border-b-2 border-primary bg-primary-50'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+              }`}
           >
             Leave Types
           </button>
           <button
             onClick={() => setActiveTab('allot')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'allot'
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'allot'
                 ? 'text-primary border-b-2 border-primary bg-primary-50'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+              }`}
           >
             Allot Leave
           </button>
@@ -603,11 +600,11 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
           </div>
 
           <div className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {leaveTypes.map((type) => (
                 <div
                   key={type._id}
-                  className="p-4 border border-gray-200 rounded-lg hover:border-primary transition-colors"
+                  className="p-4 rounded-lg bg-gray-100"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -651,9 +648,9 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
           </div>
 
           {/* Allotted Leaves List */}
-          <AllottedLeavesList 
-            leaves={leaves} 
-            employees={employees} 
+          <AllottedLeavesList
+            leaves={leaves}
+            employees={employees}
             onRefresh={fetchLeaves}
             onEditEmployee={handleEditEmployee}
             currentUserId={(session?.user as any)?.id}
@@ -670,25 +667,25 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl my-4"
           >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-primary font-bold text-gray-800">
-                  {editingEmployeeId ? 'Edit Employee Leaves' : 'Bulk Leave Allotment'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowAllotModal(false);
-                    setSelectedEmployees([]);
-                    setSelectedLeaveTypes([]);
-                    setSearchEmployee('');
-                    setSearchLeaveType('');
-                    setEditingEmployeeId(null);
-                    setEditingEmployeeLeaves([]);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-primary font-bold text-gray-800">
+                {editingEmployeeId ? 'Edit Employee Leaves' : 'Bulk Leave Allotment'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAllotModal(false);
+                  setSelectedEmployees([]);
+                  setSelectedLeaveTypes([]);
+                  setSearchEmployee('');
+                  setSearchLeaveType('');
+                  setEditingEmployeeId(null);
+                  setEditingEmployeeLeaves([]);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             <form onSubmit={handleAllotLeave} className="space-y-5">
               {/* Employee Multi-Select */}
@@ -700,7 +697,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                   <div
                     onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
                     className="w-full px-3 py-2.5 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white cursor-pointer flex items-center justify-between"
-                >
+                  >
                     <span className={selectedEmployees.length === 0 ? 'text-gray-400' : ''}>
                       {selectedEmployees.length === 0
                         ? 'Select Employees'
@@ -790,29 +787,29 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                   {showLeaveTypeDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       <div className="p-2 border-b border-gray-200">
-                <input
+                        <input
                           type="text"
                           placeholder="Search leave types..."
                           value={searchLeaveType}
                           onChange={(e) => setSearchLeaveType(e.target.value)}
                           className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary outline-none"
                           onClick={(e) => e.stopPropagation()}
-                />
-              </div>
+                        />
+                      </div>
                       <div className="p-2 space-y-1">
                         {filteredLeaveTypes.map((lt) => (
                           <label
                             key={lt._id}
                             className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
                           >
-                <input
-                  type="checkbox"
+                            <input
+                              type="checkbox"
                               checked={selectedLeaveTypes.some((slt) => slt.leaveTypeId === lt._id)}
                               onChange={() => toggleLeaveType(lt)}
-                  className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                />
+                              className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                            />
                             <span className="text-sm text-gray-700 font-secondary">{lt.name}</span>
-                </label>
+                          </label>
                         ))}
                         {filteredLeaveTypes.length === 0 && (
                           <p className="text-sm text-gray-500 text-center py-2">No leave types found</p>
@@ -828,14 +825,14 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700 font-secondary">
                     Enter Values for Each Leave Type <span className="text-red-500">*</span>
-                </label>
+                  </label>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {selectedLeaveTypes.map((lt) => {
                       const leaveTypeName = lt.leaveTypeName?.toLowerCase() || '';
-                      const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                                   leaveTypeName.includes('short-day') || 
-                                                   leaveTypeName.includes('short day');
-                      
+                      const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+                        leaveTypeName.includes('short-day') ||
+                        leaveTypeName.includes('short day');
+
                       return (
                         <motion.div
                           key={lt.leaveTypeId}
@@ -895,7 +892,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                       );
                     })}
                   </div>
-              </div>
+                </div>
               )}
 
               {/* Action Buttons */}

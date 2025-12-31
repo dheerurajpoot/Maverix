@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
     }
     // Admin and HR (when requesting all leaves for leave allotment page) can see all leaves
 
-    // Exclude penalty-related leaves (leaves deducted for late clock-in penalties)
+    // Exclude penalty-related leaves and deduction history entries (leaves deducted for late clock-in penalties and balance deductions)
     const leavesQuery = {
       ...query,
       $or: [
         { reason: { $exists: false } },
-        { reason: { $not: { $regex: /penalty|late.*clock.*in|exceeded.*max.*late/i } } },
+        { reason: { $not: { $regex: /penalty|late.*clock.*in|exceeded.*max.*late|leave.*deduction/i } } },
       ],
     };
 

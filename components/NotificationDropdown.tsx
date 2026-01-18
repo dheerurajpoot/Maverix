@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, CheckCircle, XCircle, AtSign, X, Clock } from 'lucide-react';
+import { Bell, CheckCircle, XCircle, AtSign, X, Clock, Trash2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import UserAvatar from './UserAvatar';
@@ -41,6 +41,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [clearing, setClearing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -144,6 +145,30 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
     }
   };
 
+  const handleClearAll = async () => {
+    if (clearing || notifications.length === 0) return;
+
+    try {
+      setClearing(true);
+      const res = await fetch('/api/notifications', {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setNotifications([]);
+        setUnreadCount(0);
+      } else {
+        console.error('Failed to clear notifications');
+        alert('Failed to clear notifications. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error clearing notifications:', err);
+      alert('Failed to clear notifications. Please try again.');
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'leave_approved':
@@ -176,7 +201,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
     >
       {/* Header */}
       <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-primary" />
             <h3 className="text-base font-primary font-bold text-gray-800">Notifications</h3>
@@ -195,6 +220,25 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
             </button>
           )}
         </div>
+        {notifications.length > 0 && (
+          <button
+            onClick={handleClearAll}
+            disabled={clearing}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-md text-xs font-medium text-gray-700 hover:text-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {clearing ? (
+              <>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                <span>Clearing...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-3 h-3" />
+                <span>Clear All Notifications</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Notifications List */}

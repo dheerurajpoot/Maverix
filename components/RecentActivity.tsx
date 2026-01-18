@@ -165,8 +165,8 @@ export default function RecentActivity() {
             <div className="p-4 bg-gray-100 rounded-full mb-4">
               <Activity className="w-8 h-8 text-gray-400" />
             </div>
-            <p className="text-base font-primary font-semibold text-gray-600 mb-1">No recent activities</p>
-            <p className="text-sm text-gray-500 font-secondary">Activity will appear here</p>
+            <p className="text-base font-primary font-semibold text-gray-600 mb-1">No activities today</p>
+            <p className="text-sm text-gray-500 font-secondary">Today&apos;s activities will appear here</p>
           </div>
         ) : (
           <div className="space-y-1.5">

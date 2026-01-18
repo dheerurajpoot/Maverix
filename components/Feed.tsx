@@ -9,6 +9,7 @@ import {
   Loader2,
   X,
   AtSign,
+  Eye,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import UserAvatar from './UserAvatar';
@@ -62,6 +63,8 @@ export default function Feed() {
   const [mentionStartPos, setMentionStartPos] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [viewingPost, setViewingPost] = useState<Post | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
@@ -325,6 +328,17 @@ export default function Feed() {
     );
   };
 
+  const handleViewPost = (post: Post) => {
+    setViewingPost(post);
+    setShowViewModal(true);
+  };
+
+  const isLongContent = (content: string) => {
+    // Check if content is more than ~80 characters or has multiple lines
+    // More sensitive since we're showing only 2 lines in a compact card
+    return content.length > 80 || content.split('\n').length > 2;
+  };
+
 
   // Parse mentions in content and make them clickable
   const parseContent = (content: string, mentions: MentionUser[] | undefined) => {
@@ -567,37 +581,37 @@ export default function Feed() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md border border-gray-100 p-3 hover:shadow-xl hover:border-gray-200 transition-all duration-300 relative z-0"
+                className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md border border-gray-100 p-3 hover:shadow-xl hover:border-gray-200 transition-all duration-300 relative z-0 flex flex-col h-auto"
               >
                 {/* Header Section */}
-                <div className="flex items-start justify-between mb-4 pb-2 border-b border-gray-200">
-                  <div className="flex items-start gap-3 flex-1">
+                <div className="flex items-start justify-between mb-2 pb-2 border-b border-gray-200 flex-shrink-0">
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
                     {/* Profile Image */}
                     <div className="relative flex-shrink-0">
                       <UserAvatar
                         name={post.userId.name}
                         image={post.userId.profileImage}
-                        size="md"
-                        className="ring-2 ring-gray-100"
+                        size="sm"
+                        className="ring-1 ring-gray-100"
                       />
                     </div>
                     
                     {/* User Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0 flex-wrap">
-                        <h3 className="font-sm font-bold text-gray-900 text-sm">
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        <h3 className="font-bold text-gray-900 text-sm truncate">
                           {post.userId.name}
                         </h3>
                         {post.userId.designation && (
-                          <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-secondary font-medium ${post.userId.role === 'admin'
-                              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md'
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-secondary font-medium ${post.userId.role === 'admin'
+                              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white'
                               : 'bg-gradient-to-r from-primary/10 to-purple-600/10 text-primary'
                             }`}>
                             {post.userId.designation}
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-500 font-secondary">
+                      <p className="text-[10px] text-gray-500 font-secondary truncate">
                         {formatDistanceToNow(new Date(post.createdAt), {
                           addSuffix: true,
                         })}
@@ -605,21 +619,45 @@ export default function Feed() {
                     </div>
                   </div>
                   
-                  {/* Delete Button */}
-                  {canDelete(post) && (
-                    <button
-                      onClick={() => handleDelete(post)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all flex-shrink-0"
-                      title="Delete post"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  {/* Right side buttons */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* View Post Button */}
+                    {isLongContent(post.content) && (
+                      <button
+                        onClick={() => handleViewPost(post)}
+                        className="flex items-center gap-1 px-2 py-1 text-primary rounded-md transition-all text-[10px] font-medium"
+                        title="View Full Post"
+                      >
+                        <Eye className="w-2.5 h-2.5" />
+                        <span className="hidden sm:inline">View Full Post</span>
+                      </button>
+                    )}
+                    
+                    {/* Delete Button */}
+                    {canDelete(post) && (
+                      <button
+                        onClick={() => handleDelete(post)}
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        title="Delete post"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Post Content */}
-                <div className="mt-4">
-                  <div className="text-[12px] text-gray-800 font-secondary whitespace-pre-wrap break-words leading-relaxed">
+                {/* Post Content - Fixed 2 lines */}
+                <div className="flex-1 overflow-hidden">
+                  <div 
+                    className="text-[12px] text-gray-800 font-secondary break-words leading-[1.4] overflow-hidden"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      maxHeight: '2.8em',
+                      lineHeight: '1.4em'
+                    }}
+                  >
                     {parseContent(post.content, post.mentions || [])}
                   </div>
                 </div>
@@ -671,6 +709,109 @@ export default function Feed() {
         user={selectedMention}
         position={mentionPosition}
       />
+
+      {/* View Post Modal */}
+      <AnimatePresence>
+        {showViewModal && viewingPost && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            onClick={() => {
+              setShowViewModal(false);
+              setViewingPost(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+                <h3 className="text-lg font-primary font-bold text-gray-900">Post Details</h3>
+                <button
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setViewingPost(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-lg transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* User Info */}
+                <div className="flex items-start gap-4 mb-6">
+                  <UserAvatar
+                    name={viewingPost.userId.name}
+                    image={viewingPost.userId.profileImage}
+                    size="lg"
+                    className="ring-2 ring-primary/20"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="font-primary font-bold text-gray-900 text-base">
+                        {viewingPost.userId.name}
+                      </h3>
+                      {viewingPost.userId.designation && (
+                        <span className={`text-xs px-3 py-1 rounded-full font-secondary font-medium ${viewingPost.userId.role === 'admin'
+                            ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md'
+                            : 'bg-gradient-to-r from-primary/10 to-purple-600/10 text-primary'
+                          }`}>
+                          {viewingPost.userId.designation}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 font-secondary">
+                      {formatDistanceToNow(new Date(viewingPost.createdAt), {
+                        addSuffix: true,
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Post Content */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="text-sm text-gray-800 font-secondary whitespace-pre-wrap break-words leading-relaxed">
+                    {parseContent(viewingPost.content, viewingPost.mentions || [])}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-2">
+                {canDelete(viewingPost) && (
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleDelete(viewingPost);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all text-sm font-medium"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Post</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setViewingPost(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-all text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

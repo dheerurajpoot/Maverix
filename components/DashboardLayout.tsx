@@ -20,13 +20,13 @@ import {
   IconUserCircle,
   IconMessage,
   IconCalendarEvent,
-  IconGift,
 } from '@tabler/icons-react';
 import Logo from './Logo';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
 import { User } from 'lucide-react';
 import LogoWhite from './LogoWhite';
+import ProfileCompletionBanner from './ProfileCompletionBanner';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -113,7 +113,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     { name: 'Leave Management', href: '/hr/leaves', icon: IconCalendar },
     { name: 'Attendance', href: '/hr/attendance', icon: IconClock },
     { name: 'Finance Reports', href: '/hr/finance', icon: IconCurrencyDollar },
-    { name: 'Wishing', href: '/hr/wishing', icon: IconGift },
     { name: 'Profile', href: '/hr/profile', icon: IconUserCircle },
   ];
 
@@ -368,6 +367,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
             </div>
           </div>
         </nav>
+
+        {/* Profile Completion Banner */}
+        <ProfileCompletionBanner />
 
         {/* Page content */}
         <main className="bg-[#eef3ff] p-3 pb-16 lg:pb-4">{children}</main>

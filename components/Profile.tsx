@@ -148,6 +148,8 @@ export default function Profile() {
         if (updateRes.ok) {
           setProfile(updateData.user);
           toast.success('Profile picture updated successfully');
+          // Dispatch event to notify other components (like ProfileCompletionBanner)
+          window.dispatchEvent(new CustomEvent('profileUpdated'));
         } else {
           toast.error(updateData.error || 'Failed to update profile picture');
           setPreviewImage(profile?.profileImage || null);
@@ -243,6 +245,8 @@ export default function Profile() {
           confirmPassword: '',
         });
         toast.success('Profile updated successfully');
+        // Dispatch event to notify other components (like ProfileCompletionBanner)
+        window.dispatchEvent(new CustomEvent('profileUpdated'));
       } else {
         toast.error(data.error || 'Failed to update profile');
       }

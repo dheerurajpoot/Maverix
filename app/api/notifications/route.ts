@@ -140,3 +140,45 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// DELETE - Clear all notifications for the current user
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = (session.user as any).id;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found' }, { status: 401 });
+    }
+
+    // Validate userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error('Invalid userId format:', userId);
+      return NextResponse.json({ error: 'Invalid user ID format' }, { status: 400 });
+    }
+
+    await connectDB();
+
+    // Mark all notifications as dismissed instead of deleting them
+    const result = await Notification.updateMany(
+      { userId: new mongoose.Types.ObjectId(userId), dismissed: false },
+      { 
+        dismissed: true, 
+        dismissedAt: new Date() 
+      }
+    );
+
+    return NextResponse.json({
+      message: 'All notifications cleared successfully',
+      count: result.modifiedCount,
+    });
+  } catch (error: any) {
+    console.error('Clear notifications error:', error);
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+  }
+}
+

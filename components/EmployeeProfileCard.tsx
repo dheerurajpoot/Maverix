@@ -3,8 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Briefcase, Calendar } from 'lucide-react';
-import UserAvatar from './UserAvatar';
+import { User, Mail, Phone, Briefcase, Calendar, IdCard, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 import LoadingDots from './LoadingDots';
 
@@ -65,25 +64,11 @@ export default function EmployeeProfileCard() {
 
   return (
     <>
-      <style jsx global>{`
-        @keyframes shining-red-border {
-          0%, 100% {
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6), 0 0 25px rgba(239, 68, 68, 0.3), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          }
-          50% {
-            box-shadow: 0 0 25px rgba(239, 68, 68, 0.9), 0 0 40px rgba(239, 68, 68, 0.6), 0 0 60px rgba(239, 68, 68, 0.3), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          }
-        }
-      `}</style>
       {loading ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-md overflow-hidden border-2 border-red-500 h-[400px] flex flex-col"
-          style={{
-            background: 'var(--secondary)',
-            animation: 'shining-red-border 2s ease-in-out infinite'
-          }}
+          className="rounded-md overflow-hidden bg-white shadow-lg h-[400px] flex flex-col border border-gray-100"
         >
           <div className="p-6 flex items-center justify-center flex-1">
             <LoadingDots size="md" />
@@ -94,115 +79,118 @@ export default function EmployeeProfileCard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-md overflow-hidden border-2 border-blue-500 hover:shadow-xl transition-all h-[400px] flex flex-col"
-          style={{
-            background: 'var(--primary)',
-            animation: 'shining-red-border 2s ease-in-out infinite'
-          }}
+          className="profile-card-background rounded-md overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all h-[400px] flex flex-col border border-gray-100"
         >
-          {/* Header with Royal Blue Background */}
-          <div className="p-6 relative overflow-hidden">
-            <div className="relative z-10 flex items-center">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-4 border-white/30 shadow-xl ring-2 ring-white/20">
-                    {profileImage || (session?.user as any)?.profileImage ? (
-                      <img
-                        src={profileImage || (session?.user as any)?.profileImage}
-                        alt={userProfile?.name || session?.user?.name || 'User'}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-white/20 flex items-center justify-center">
-                        <User className="w-10 h-10 text-white" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white font-primary">
-                    {userProfile?.name || session?.user?.name || 'Employee'}
-                  </h3>
-                  {userProfile?.designation ? (
-                    <p className="text-sm text-white/90 font-secondary mt-1">
-                      {userProfile.designation}
-                    </p>
+          {/* Top Section - Profile Picture and Name/ID */}
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex items-start gap-4">
+              {/* Profile Picture */}
+              <div className="relative flex-shrink-0">
+                <div className="w-[50px] h-[50px] rounded-full overflow-hidden border-2 border-gray-200 shadow-md bg-white">
+                  {profileImage || (session?.user as any)?.profileImage ? (
+                    <img
+                      src={profileImage || (session?.user as any)?.profileImage}
+                      alt={userProfile?.name || session?.user?.name || 'User'}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <p className="text-xs text-white/70 font-secondary italic mt-1">
-                      No designation
-                    </p>
+                    <div className="w-full h-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                      <User className="w-10 h-10 text-white" />
+                    </div>
                   )}
                 </div>
+              </div>
+
+              {/* Name and Employee ID */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-gray-900 font-primary truncate">
+                  {userProfile?.name || session?.user?.name || 'Employee'}
+                </h3>
+                {userProfile?.empId && (
+                  <div className="inline-flex items-center">
+                    <span className="text-xs font-bold text-primary">ID: {userProfile.empId}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Profile Details */}
-          <div className="p-6 space-y-4">
-            {/* Email */}
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <Mail className="w-4 h-4 text-white" />
+          {/* Information Rows */}
+          <div className="flex-1 p-4 space-y-1">
+            {/* Email Row */}
+            <div className="flex items-center gap-3 p-2.5">
+              <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Mail className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/70 font-secondary">Email</p>
-                <p className="text-sm font-semibold text-white font-secondary truncate">
+                <p className="text-[10px] text-gray-500 font-medium font-secondary uppercase">Email</p>
+                <p className="text-xs font-semibold text-gray-900 font-secondary truncate">
                   {userProfile?.email || session?.user?.email || 'N/A'}
                 </p>
               </div>
             </div>
 
-            {/* Mobile Number */}
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <Phone className="w-4 h-4 text-white" />
+            {/* Phone Row */}
+            <div className="flex items-center gap-3 p-2.5">
+              <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Phone className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/70 font-secondary">Mobile</p>
-                <p className="text-sm font-semibold text-white font-secondary">
+                <p className="text-[10px] text-gray-500 font-medium font-secondary uppercase">Mobile</p>
+                <p className="text-xs font-semibold text-gray-900 font-secondary">
                   {userProfile?.mobileNumber || 'Not set'}
                 </p>
               </div>
             </div>
 
-            {/* Designation */}
-            {userProfile?.designation && (
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <Briefcase className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white/70 font-secondary">Designation</p>
-                  <p className="text-sm font-semibold text-white font-secondary">
-                    {userProfile.designation}
-                  </p>
-                </div>
+            {/* Designation Row */}
+            <div className="flex items-center gap-3 p-2.5">
+              <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Briefcase className="w-4 h-4 text-primary" />
               </div>
-            )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-500 font-medium font-secondary uppercase">Designation</p>
+                <p className="text-xs font-semibold text-gray-900 font-secondary truncate">
+                  {userProfile?.designation || 'Not set'}
+                </p>
+              </div>
+            </div>
 
-            {/* Date of Birth */}
+            {/* Date of Birth Row */}
             {userProfile?.dateOfBirth && (
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <Calendar className="w-4 h-4 text-white" />
+              <div className="flex items-center gap-3 p-2.5">
+                <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Calendar className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white/70 font-secondary">Date of Birth</p>
-                  <p className="text-sm font-semibold text-white font-secondary">
+                  <p className="text-[10px] text-gray-500 font-medium font-secondary uppercase">Date of Birth</p>
+                  <p className="text-xs font-semibold text-gray-900 font-secondary">
                     {formatDateOfBirth(userProfile.dateOfBirth)}
                   </p>
                 </div>
               </div>
             )}
-          </div>
-          <div className="w-full text-center justify-center items-center mb-2">
-            <p className="text-sm font-semibold text-white font-secondary">
-              http://mavericksmedia.org/
-            </p>
+
+            {/* Website Row */}
+            <a
+              href="http://mavericksmedia.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+                className="flex items-center gap-3 p-2.5 group"
+            >
+              <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <Globe className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-500 font-medium font-secondary uppercase">Website</p>
+                <p className="text-xs font-semibold text-primary font-secondary truncate group-hover:text-primary-dark">
+                  mavericksmedia.org
+                </p>
+              </div>
+            </a>
           </div>
         </motion.div>
       )}
     </>
   );
 }
-

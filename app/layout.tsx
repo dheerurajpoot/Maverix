@@ -10,8 +10,39 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "MaveriX",
-  description: "Modern HR Management System",
+  title: "MaveriX – Smart HRM Software for Modern Businesses",
+  description: "MaveriX is an all-in-one HRM software for employee management, payroll, attendance, and performance tracking. Made with ❤️ by Iconic Chandu",
+
+  keywords: [
+    "HRM Software",
+    "HR Management System",
+    "Human Resource Software",
+    "Payroll Management",
+    "Employee Management System",
+    "HRMS Software",
+    "HRMS System",
+    "HRMS Software for Small Businesses",
+    "HRMS Software for Large Businesses",
+    "HRMS Software for Medium Businesses",
+    "HRMS Software for Startups",
+    "HRMS Software for Enterprises",
+  ],
+  authors: [
+    { name: "Iconic Chandu", url: "https://iconicchandu.online/" },
+  ],
+  creator: "Iconic Chandu",
+  publisher: "Iconic Chandu",
+  openGraph: {
+    title: "MaveriX – Smart HRM Software for Modern Businesses",
+    description: "MaveriX is an all-in-one HRM software for employee management, payroll, attendance, and performance tracking. Made with ❤️ by Iconic Chandu",
+    url: "https://www.maverix.online",
+    siteName: "MaveriX",
+    images: [
+      { url: "/assets/maverixicon.png", width: 1200, height: 630, alt: "MaveriX" },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
   icons: {
     icon: [
       { url: "/assets/maverixicon.png", sizes: "any" },
@@ -48,35 +79,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={openSans.variable}>
-      <head>
-        {/* Theme Color */}
-        <meta name="theme-color" content="#6366f1" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="MaveriX" />
-        
-        {/* Favicon */}
-        <link
-          rel="icon"
-          href="/assets/maverixicon.png"
-          type="image/png"
-        />
-        
-        {/* Apple Touch Icon */}
-        <link
-          rel="apple-touch-icon"
-          href="/assets/maverixicon.png"
-        />
-        
-        {/* Manifest */}
-        <link rel="manifest" href="/manifest" />
-        
-        {/* External Fonts */}
-        <link
-          href="https://fonts.cdnfonts.com/css/gotham"
-          rel="stylesheet"
-        />
-      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

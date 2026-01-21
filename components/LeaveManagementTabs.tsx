@@ -71,6 +71,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
   const [editingEmployeeLeaves, setEditingEmployeeLeaves] = useState<any[]>([]);
   const employeeDropdownRef = useRef<HTMLDivElement>(null);
   const leaveTypeDropdownRef = useRef<HTMLDivElement>(null);
+  const selectAllEmployeesRef = useRef<HTMLInputElement>(null);
   const [typeFormData, setTypeFormData] = useState({
     name: '',
     description: '',
@@ -83,6 +84,17 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
   });
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
+
+  const resetAllotmentForm = useCallback(() => {
+    setSelectedEmployees([]);
+    setSelectedLeaveTypes([]);
+    setSearchEmployee('');
+    setSearchLeaveType('');
+    setShowEmployeeDropdown(false);
+    setShowLeaveTypeDropdown(false);
+    setEditingEmployeeId(null);
+    setEditingEmployeeLeaves([]);
+  }, []);
 
   const fetchLeaves = useCallback(async () => {
     try {
@@ -250,6 +262,34 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     emp.name.toLowerCase().includes(searchEmployee.toLowerCase()) ||
     emp.email.toLowerCase().includes(searchEmployee.toLowerCase())
   );
+
+  const filteredEmployeeIds = useMemo(() => filteredEmployees.map((e) => e._id), [filteredEmployees]);
+  const allFilteredEmployeesSelected = useMemo(() => {
+    return filteredEmployeeIds.length > 0 && filteredEmployeeIds.every((id) => selectedEmployees.includes(id));
+  }, [filteredEmployeeIds, selectedEmployees]);
+  const someFilteredEmployeesSelected = useMemo(() => {
+    return filteredEmployeeIds.some((id) => selectedEmployees.includes(id));
+  }, [filteredEmployeeIds, selectedEmployees]);
+
+  useEffect(() => {
+    if (selectAllEmployeesRef.current) {
+      selectAllEmployeesRef.current.indeterminate =
+        someFilteredEmployeesSelected && !allFilteredEmployeesSelected;
+    }
+  }, [someFilteredEmployeesSelected, allFilteredEmployeesSelected]);
+
+  const toggleSelectAllFilteredEmployees = useCallback(() => {
+    if (filteredEmployeeIds.length === 0) return;
+
+    setSelectedEmployees((prev) => {
+      if (filteredEmployeeIds.every((id) => prev.includes(id))) {
+        // Unselect all filtered employees
+        return prev.filter((id) => !filteredEmployeeIds.includes(id));
+      }
+      // Select all filtered employees
+      return Array.from(new Set([...prev, ...filteredEmployeeIds]));
+    });
+  }, [filteredEmployeeIds]);
 
   const filteredLeaveTypes = leaveTypes.filter((lt) =>
     lt.name.toLowerCase().includes(searchLeaveType.toLowerCase())
@@ -680,7 +720,11 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-primary font-semibold text-gray-800">Allot Leave to Employee</h2>
               <button
-                onClick={() => setShowAllotModal(true)}
+                onClick={() => {
+                  // Ensure a fresh form when starting a new allotment
+                  resetAllotmentForm();
+                  setShowAllotModal(true);
+                }}
                 className="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -716,12 +760,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
               <button
                 onClick={() => {
                   setShowAllotModal(false);
-                  setSelectedEmployees([]);
-                  setSelectedLeaveTypes([]);
-                  setSearchEmployee('');
-                  setSearchLeaveType('');
-                  setEditingEmployeeId(null);
-                  setEditingEmployeeLeaves([]);
+                  resetAllotmentForm();
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -759,6 +798,23 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                           className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary outline-none"
                           onClick={(e) => e.stopPropagation()}
                         />
+                      </div>
+                      <div className="px-2 py-2 border-b border-gray-200">
+                        <label className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <input
+                            ref={selectAllEmployeesRef}
+                            type="checkbox"
+                            checked={allFilteredEmployeesSelected}
+                            onChange={toggleSelectAllFilteredEmployees}
+                            className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                          />
+                          <span className="text-sm text-gray-700 font-secondary">
+                            Select all{searchEmployee ? ' (filtered)' : ''}{' '}
+                            <span className="text-xs text-gray-500">
+                              ({filteredEmployeeIds.length})
+                            </span>
+                          </span>
+                        </label>
                       </div>
                       <div className="p-2 space-y-1">
                         {filteredEmployees.map((emp) => (
@@ -943,10 +999,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                   type="button"
                   onClick={() => {
                     setShowAllotModal(false);
-                    setSelectedEmployees([]);
-                    setSelectedLeaveTypes([]);
-                    setSearchEmployee('');
-                    setSearchLeaveType('');
+                    resetAllotmentForm();
                   }}
                   className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-secondary"
                 >

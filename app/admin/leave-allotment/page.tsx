@@ -72,6 +72,7 @@ export default function AdminLeaveAllotmentPage() {
   const [searchLeaveType, setSearchLeaveType] = useState('');
   const employeeDropdownRef = useRef<HTMLDivElement>(null);
   const leaveTypeDropdownRef = useRef<HTMLDivElement>(null);
+  const selectAllEmployeesRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -194,6 +195,28 @@ export default function AdminLeaveAllotmentPage() {
     emp.name.toLowerCase().includes(searchEmployee.toLowerCase()) ||
     emp.email.toLowerCase().includes(searchEmployee.toLowerCase())
   );
+
+  const filteredEmployeeIds = filteredEmployees.map((e) => e._id);
+  const allFilteredEmployeesSelected =
+    filteredEmployeeIds.length > 0 && filteredEmployeeIds.every((id) => selectedEmployees.includes(id));
+  const someFilteredEmployeesSelected = filteredEmployeeIds.some((id) => selectedEmployees.includes(id));
+
+  useEffect(() => {
+    if (selectAllEmployeesRef.current) {
+      selectAllEmployeesRef.current.indeterminate =
+        someFilteredEmployeesSelected && !allFilteredEmployeesSelected;
+    }
+  }, [someFilteredEmployeesSelected, allFilteredEmployeesSelected]);
+
+  const toggleSelectAllFilteredEmployees = () => {
+    if (filteredEmployeeIds.length === 0) return;
+    setSelectedEmployees((prev) => {
+      if (filteredEmployeeIds.every((id) => prev.includes(id))) {
+        return prev.filter((id) => !filteredEmployeeIds.includes(id));
+      }
+      return Array.from(new Set([...prev, ...filteredEmployeeIds]));
+    });
+  };
 
   const filteredLeaveTypes = leaveTypes.filter((lt) =>
     lt.name.toLowerCase().includes(searchLeaveType.toLowerCase())
@@ -344,6 +367,23 @@ export default function AdminLeaveAllotmentPage() {
                             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary outline-none"
                             onClick={(e) => e.stopPropagation()}
                           />
+                        </div>
+                        <div className="px-2 py-2 border-b border-gray-200">
+                          <label className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input
+                              ref={selectAllEmployeesRef}
+                              type="checkbox"
+                              checked={allFilteredEmployeesSelected}
+                              onChange={toggleSelectAllFilteredEmployees}
+                              className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                            />
+                            <span className="text-sm text-gray-700 font-secondary">
+                              Select all{searchEmployee ? ' (filtered)' : ''}{' '}
+                              <span className="text-xs text-gray-500">
+                                ({filteredEmployeeIds.length})
+                              </span>
+                            </span>
+                          </label>
                         </div>
                         <div className="p-2 space-y-1">
                           {filteredEmployees.map((emp) => (

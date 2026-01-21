@@ -31,9 +31,12 @@ async function connectDB() {
     cached!.promise = mongoose.connect(MONGODB_URI, {
       bufferCommands: false,
 
-      // 🔥 MOST IMPORTANT FOR ATLAS M0
-      maxPoolSize: 5,                 // prevent connection explosion
+      // 🔥 MOST IMPORTANT FOR ATLAS M0 / serverless production
+      // In production (Vercel/Render/etc.) you can end up with many instances.
+      // Keeping the pool tiny prevents Atlas "connections exceeded" and the resulting TLS/SSL errors.
+      maxPoolSize: 1,
       minPoolSize: 0,
+      maxIdleTimeMS: 60_000,          // close idle sockets faster
 
       serverSelectionTimeoutMS: 5000, // fail fast
       socketTimeoutMS: 45000,

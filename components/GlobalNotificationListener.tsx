@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { showBrowserNotification } from '@/lib/notificationTrigger';
@@ -9,84 +9,112 @@ export default function GlobalNotificationListener() {
   const { data: session } = useSession();
   const router = useRouter();
   const lastNotificationIdRef = useRef<string | null>(null);
+  const lastCheckedAtRef = useRef<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fastPollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!session || typeof window === 'undefined') {
       return;
     }
 
-    // Check notification permission
-    if (!('Notification' in window)) {
-      return;
-    }
-
-    // Request permission if not granted
-    if (Notification.permission === 'default') {
+    // Check if browser notifications are supported
+    const notificationsSupported = 'Notification' in window;
+    
+    // Request permission if supported and not granted
+    if (notificationsSupported && Notification.permission === 'default') {
       Notification.requestPermission().catch((error) => {
         console.error('Error requesting notification permission:', error);
       });
-      return;
     }
 
-    if (Notification.permission !== 'granted') {
-      return;
-    }
+    // Use faster polling when app is active for near-instant notifications
+    // This works even without service worker (HTTP/iOS)
+    const FAST_POLL_INTERVAL_MS = 3000; // 3 seconds when active
+    const SLOW_POLL_INTERVAL_MS = 15000; // 15 seconds when in background
 
-    // Polling every 1s is extremely expensive for both client and server.
-    // We rely on the custom in-tab event for immediate updates, and use
-    // polling only as a fallback for cross-tab / remote updates.
-    const POLL_INTERVAL_MS = 15000; // 15s
+    // Helper to show notification (works on both desktop and mobile)
+    const displayNotification = (notification: any) => {
+      // Determine URL based on notification type
+      let url = '/';
+      const userRole = (session?.user as any)?.role || 'employee';
+      
+      if (notification.type === 'mention') {
+        url = `/${userRole}/feed`;
+      } else if (notification.type === 'leave_approved' || notification.type === 'leave_rejected') {
+        url = `/${userRole}/leaves`;
+      } else if (notification.type === 'leave_request') {
+        url = '/hr/leave-request';
+      }
+
+      // Try browser notification first (works on desktop and some mobile browsers)
+      if (notificationsSupported && Notification.permission === 'granted') {
+        showBrowserNotification(notification.title, notification.message, {
+          icon: '/assets/maverixicon.png',
+          badge: '/assets/maverixicon.png',
+          tag: `notification-${notification._id}`,
+          data: {
+            notificationId: notification._id,
+            type: notification.type,
+            url,
+            leaveId: notification.leaveId?._id || notification.leaveId,
+            feedId: notification.feedId?._id || notification.feedId,
+          },
+          requireInteraction: false,
+        });
+      }
+
+      // Also dispatch a custom event for in-app toast notifications
+      // This ensures notifications are shown even if browser notifications don't work
+      window.dispatchEvent(new CustomEvent('showInAppNotification', {
+        detail: {
+          id: notification._id,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          url,
+        }
+      }));
+    };
 
     // Function to check for new notifications and show them
     const checkAndShowNotifications = async () => {
       try {
-        // Don't do background work when the tab is hidden
-        if (document.visibilityState !== 'visible') return;
+        // Build query with timestamp to check for new notifications
+        const queryParams = new URLSearchParams({
+          limit: '5',
+          includeDismissed: 'false',
+          t: Date.now().toString(),
+        });
+        
+        // If we have a last checked time, only get newer notifications
+        if (lastCheckedAtRef.current) {
+          queryParams.set('since', lastCheckedAtRef.current);
+        }
 
-        const res = await fetch(`/api/notifications?limit=1&includeDismissed=false&t=${Date.now()}`, {
+        const res = await fetch(`/api/notifications?${queryParams}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache' },
         });
         const data = await res.json();
 
         if (res.ok && data.notifications && data.notifications.length > 0) {
-          const latestNotification = data.notifications[0];
+          // Update last checked time
+          lastCheckedAtRef.current = new Date().toISOString();
 
-          // Check if this is a new notification
-          if (
-            latestNotification._id !== lastNotificationIdRef.current &&
-            !latestNotification.read
-          ) {
-            lastNotificationIdRef.current = latestNotification._id;
+          // Process notifications (newest first, but show oldest first for better UX)
+          const newNotifications = data.notifications
+            .filter((n: any) => n._id !== lastNotificationIdRef.current && !n.read)
+            .reverse(); // Show oldest first
 
-            // Determine URL based on notification type
-            let url = '/';
-            if (latestNotification.type === 'mention') {
-              url = '/employee/feed';
-            } else if (
-              latestNotification.type === 'leave_approved' ||
-              latestNotification.type === 'leave_rejected'
-            ) {
-              url = '/employee/leaves';
-            } else if (latestNotification.type === 'leave_request') {
-              url = '/hr/leave-request';
+          for (const notification of newNotifications) {
+            lastNotificationIdRef.current = notification._id;
+            displayNotification(notification);
+            
+            // Small delay between multiple notifications
+            if (newNotifications.length > 1) {
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
-
-            // Show browser notification immediately
-            showBrowserNotification(latestNotification.title, latestNotification.message, {
-              icon: '/assets/maverixicon.png',
-              badge: '/assets/maverixicon.png',
-              tag: `notification-${latestNotification._id}`,
-              data: {
-                notificationId: latestNotification._id,
-                type: latestNotification.type,
-                url,
-                leaveId: latestNotification.leaveId?._id || latestNotification.leaveId,
-                feedId: latestNotification.feedId?._id || latestNotification.feedId,
-              },
-              requireInteraction: false, // Don't require interaction - just show it
-            });
           }
         }
       } catch (error) {
@@ -97,61 +125,60 @@ export default function GlobalNotificationListener() {
     // Initial check
     checkAndShowNotifications();
 
-    // Poll for new notifications (fallback only)
-    pollingIntervalRef.current = setInterval(checkAndShowNotifications, POLL_INTERVAL_MS);
+    // Start fast polling when visible
+    const startFastPolling = () => {
+      if (fastPollingRef.current) clearInterval(fastPollingRef.current);
+      fastPollingRef.current = setInterval(checkAndShowNotifications, FAST_POLL_INTERVAL_MS);
+    };
 
-    // Also listen for custom events (when notifications are created)
+    // Switch to slow polling when hidden
+    const startSlowPolling = () => {
+      if (fastPollingRef.current) clearInterval(fastPollingRef.current);
+      fastPollingRef.current = null;
+    };
+
+    // Start appropriate polling based on visibility
+    if (document.visibilityState === 'visible') {
+      startFastPolling();
+    }
+
+    // Slow background poll (always running as fallback)
+    pollingIntervalRef.current = setInterval(() => {
+      if (document.visibilityState !== 'visible') {
+        checkAndShowNotifications();
+      }
+    }, SLOW_POLL_INTERVAL_MS);
+
+    // Also listen for custom events (when notifications are created in same tab)
     const handleNotificationCreated = (event: CustomEvent) => {
       const notification = event.detail;
       if (notification && notification._id !== lastNotificationIdRef.current) {
         lastNotificationIdRef.current = notification._id;
-        showBrowserNotification(notification.title, notification.message, {
-          icon: '/assets/mobileicon.jpg',
-          badge: '/assets/maverixicon.png',
-          tag: `notification-${notification._id}`,
-          data: {
-            notificationId: notification._id,
-            type: notification.type,
-            url:
-              notification.type === 'mention'
-                ? '/employee/feed'
-                : notification.type === 'leave_approved' || notification.type === 'leave_rejected'
-                ? '/employee/leaves'
-                : '/',
-          },
-        });
+        displayNotification(notification);
       }
     };
 
     window.addEventListener('notificationCreated' as any, handleNotificationCreated as EventListener);
 
-    // Re-check immediately when returning to the tab
+    // Handle visibility changes
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        // Immediately check and start fast polling
         checkAndShowNotifications();
+        startFastPolling();
+      } else {
+        // Stop fast polling when hidden
+        startSlowPolling();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Handle notification clicks
-    const handleNotificationClick = (event: Event) => {
-      const notification = (event.target as Notification);
-      const data = notification.data;
-      if (data && data.url) {
-        router.push(data.url);
-      }
-      notification.close();
-    };
-
-    // Listen for notification clicks
-    if ('Notification' in window) {
-      // Note: Notification click events are handled by the browser
-      // We can add a click handler if needed in the future
-    }
-
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
+      }
+      if (fastPollingRef.current) {
+        clearInterval(fastPollingRef.current);
       }
       window.removeEventListener(
         'notificationCreated' as any,

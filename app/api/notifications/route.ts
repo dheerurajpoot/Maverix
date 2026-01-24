@@ -34,10 +34,23 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const limit = request.nextUrl.searchParams.get('limit');
     const includeDismissed = request.nextUrl.searchParams.get('includeDismissed') === 'true';
+    const since = request.nextUrl.searchParams.get('since');
     
     const query: any = { userId: new mongoose.Types.ObjectId(userId) };
     if (!includeDismissed) {
       query.dismissed = false;
+    }
+    
+    // Filter by creation time if 'since' parameter is provided
+    if (since) {
+      try {
+        const sinceDate = new Date(since);
+        if (!isNaN(sinceDate.getTime())) {
+          query.createdAt = { $gt: sinceDate };
+        }
+      } catch (e) {
+        // Ignore invalid date
+      }
     }
 
     // Always limit to 10 most recent notifications

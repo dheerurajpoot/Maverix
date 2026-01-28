@@ -16,6 +16,7 @@ import { useToast } from "@/contexts/ToastContext";
 import UserAvatar from "@/components/UserAvatar";
 import LoadingDots from "@/components/LoadingDots";
 import Logo from "@/components/Logo";
+import axios from "axios";
 
 export default function EmployeeDashboard() {
 	const { data: session } = useSession();
@@ -29,14 +30,13 @@ export default function EmployeeDashboard() {
 	});
 	const [loading, setLoading] = useState(true);
 	const [userProfile, setUserProfile] = useState<any>(null);
-	const [profileImage, setProfileImage] = useState<string | null>(null);
 	const [showBirthdayCelebration, setShowBirthdayCelebration] =
 		useState(false);
 	const [announcements, setAnnouncements] = useState<any[]>([]);
 	const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
 	const [showAnnouncement, setShowAnnouncement] = useState(false);
 	const [activeAnnouncements, setActiveAnnouncements] = useState<any[]>([]);
-	const [showAnnouncementButton, setShowAnnouncementButton] = useState(true); // Always visible
+	const [showAnnouncementButton, setShowAnnouncementButton] = useState(true);
 	const [hasNewAnnouncement, setHasNewAnnouncement] = useState(false);
 	const [lastAnnouncementId, setLastAnnouncementId] = useState<string | null>(
 		null,
@@ -63,73 +63,42 @@ export default function EmployeeDashboard() {
 		// Update greeting every minute to handle day transitions
 		const interval = setInterval(() => {
 			setGreeting(getGreeting());
-		}, 60000); // Check every minute
+		}, 300000); // Check every 5 minutes
 
 		return () => clearInterval(interval);
 	}, []);
 
-	const fetchStats = useCallback(async () => {
+	// Consolidated API call - fetches all dashboard data in one request
+	const fetchDashboardData = useCallback(async () => {
 		try {
 			setLoading(true);
-			const [
-				leavesRes,
-				leaveTypesRes,
-				teamsRes,
-				weeklyHoursRes,
-				attendanceRes,
-			] = await Promise.all([
-				fetch("/api/leave"),
-				fetch("/api/leave/allotted-types"),
-				fetch("/api/teams/my-team"),
-				fetch("/api/attendance/weekly-hours"),
-				fetch("/api/attendance/stats"),
-			]);
+			const response = await axios.get("/api/employee/dashboard");
+			const data = response.data;
 
-			const leaves = await leavesRes.json();
-			const leaveTypes = await leaveTypesRes.json();
-			const teams = await teamsRes.json();
-			const weeklyHours = await weeklyHoursRes.json();
-			const attendance = await attendanceRes.json();
-
-			// Calculate total team members
-			let totalTeamMembers = 0;
-			if (teams.teams && teams.teams.length > 0) {
-				teams.teams.forEach((team: any) => {
-					totalTeamMembers += team.members?.length || 0;
-				});
+			if (data.stats) {
+				setStats(data.stats);
 			}
-
-			setStats({
-				totalLeaveTypes: leaveTypes.leaveTypes?.length || 0,
-				pendingLeaves:
-					leaves.leaves?.filter(
-						(l: any) => l.status === "pending" && !l.allottedBy,
-					).length || 0,
-				totalInTeam: totalTeamMembers,
-				weeklyHours: weeklyHours.weeklyHours || 0,
-				attendanceThisMonth: attendance.attendanceThisMonth || 0,
-			});
-		} catch (err) {
-			console.error("Error fetching stats:", err);
-			toast.error("Failed to load dashboard stats");
+		} catch (err: any) {
+			console.error("Error fetching dashboard data:", err);
+			toast.error(
+				err.response?.data?.error || "Failed to load dashboard stats",
+			);
 		} finally {
 			setLoading(false);
 		}
-	}, [session]);
+	}, [toast]);
 
-	const fetchUserProfile = async () => {
+	// Fetch user profile only once - check for birthday
+	const fetchUserProfile = useCallback(async () => {
 		try {
-			// Don't include profileImage in initial fetch to prevent slow dashboard loads
-			// ProfileImage will be loaded from session or fetched separately if needed
-			const res = await fetch("/api/profile");
-			const data = await res.json();
-			if (res.ok && data.user) {
-				setUserProfile(data.user);
+			const response = await axios.get("/api/profile");
+			if (response.data.user) {
+				setUserProfile(response.data.user);
 
 				// Check if today is the user's birthday
-				if (data.user.dateOfBirth) {
+				if (response.data.user.dateOfBirth) {
 					const today = new Date();
-					const dob = new Date(data.user.dateOfBirth);
+					const dob = new Date(response.data.user.dateOfBirth);
 					const birthMonth = dob.getMonth();
 					const birthDay = dob.getDate();
 
@@ -152,52 +121,16 @@ export default function EmployeeDashboard() {
 		} catch (err) {
 			console.error("Error fetching user profile:", err);
 		}
-	};
+	}, []);
 
-	const fetchProfileImage = useCallback(async () => {
-		try {
-			// First check if profileImage is in session
-			const sessionImage =
-				(session?.user as any)?.image ||
-				(session?.user as any)?.profileImage;
-			if (sessionImage) {
-				setProfileImage(sessionImage);
-				return;
-			}
-
-			// If not in session, fetch it from API
-			const res = await fetch("/api/profile/image");
-			const data = await res.json();
-			if (res.ok && data.profileImage) {
-				setProfileImage(data.profileImage);
-			}
-		} catch (err) {
-			console.error("Error fetching profile image:", err);
-		}
-	}, [session]);
-
-	const fetchAnnouncements = async () => {
-		try {
-			const res = await fetch("/api/announcements");
-			const data = await res.json();
-			if (res.ok && data.announcements && data.announcements.length > 0) {
-				setAnnouncements(data.announcements);
-				setCurrentAnnouncementIndex(0);
-				setShowAnnouncement(true);
-			}
-		} catch (err) {
-			console.error("Error fetching announcements:", err);
-		}
-	};
-
+	// Fetch active announcements - optimized to reduce calls
 	const fetchActiveAnnouncements = useCallback(
 		async (isInitialLoad = false) => {
 			try {
-				// Use a query parameter to get all announcements including future ones
-				const res = await fetch("/api/announcements?all=true");
-				const data = await res.json();
+				const response = await axios.get("/api/announcements?all=true");
+				const data = response.data;
 
-				if (res.ok && data.announcements) {
+				if (data.announcements) {
 					const today = new Date();
 					today.setHours(0, 0, 0, 0);
 
@@ -243,7 +176,7 @@ export default function EmployeeDashboard() {
 					}
 
 					setActiveAnnouncements(active);
-					setShowAnnouncementButton(true); // Always show button
+					setShowAnnouncementButton(true);
 				}
 			} catch (err) {
 				console.error("Error fetching active announcements:", err);
@@ -252,45 +185,24 @@ export default function EmployeeDashboard() {
 		[lastAnnouncementId],
 	);
 
-	const handleShowAnnouncement = async () => {
+	const handleShowAnnouncement = () => {
 		// Stop the glowing animation when button is clicked
 		setHasNewAnnouncement(false);
 
-		// If no active announcements, fetch them first
-		if (activeAnnouncements.length === 0) {
-			// Fetch announcements and get the result
-			const res = await fetch("/api/announcements?all=true");
-			const data = await res.json();
-
-			if (res.ok && data.announcements) {
-				const today = new Date();
-				today.setHours(0, 0, 0, 0);
-
-				const active = data.announcements.filter(
-					(announcement: any) => {
-						const announcementDate = new Date(announcement.date);
-						announcementDate.setHours(0, 0, 0, 0);
-						return announcementDate >= today;
-					},
-				);
-
-				active.sort((a: any, b: any) => {
-					return (
-						new Date(b.createdAt).getTime() -
-						new Date(a.createdAt).getTime()
-					);
-				});
-
-				if (active.length > 0) {
-					setAnnouncements(active);
-					setCurrentAnnouncementIndex(0);
-					setShowAnnouncement(true);
-				}
-			}
-		} else {
+		// Use already fetched active announcements
+		if (activeAnnouncements.length > 0) {
 			setAnnouncements(activeAnnouncements);
 			setCurrentAnnouncementIndex(0);
 			setShowAnnouncement(true);
+		} else {
+			// Only fetch if we don't have any
+			fetchActiveAnnouncements(true).then(() => {
+				if (activeAnnouncements.length > 0) {
+					setAnnouncements(activeAnnouncements);
+					setCurrentAnnouncementIndex(0);
+					setShowAnnouncement(true);
+				}
+			});
 		}
 	};
 
@@ -308,56 +220,56 @@ export default function EmployeeDashboard() {
 	};
 
 	const handleAnnouncementViewTracked = () => {
-		// Refresh announcements to get updated view counts
-		fetchAnnouncements();
-		fetchActiveAnnouncements();
+		// Refresh active announcements to get updated view counts
+		fetchActiveAnnouncements(false);
 	};
 
+	// Initial data fetch - only once when session is available
 	useEffect(() => {
 		if (session) {
-			fetchStats();
+			fetchDashboardData();
 			fetchUserProfile();
-			fetchAnnouncements();
 			fetchActiveAnnouncements(true);
-			fetchProfileImage();
 		}
+	}, [
+		session,
+		fetchDashboardData,
+		fetchUserProfile,
+		fetchActiveAnnouncements,
+	]);
 
-		// Refetch when page becomes visible (user navigates back)
+	useEffect(() => {
+		if (!session) return;
+
+		let lastHiddenTime = Date.now();
 		const handleVisibilityChange = () => {
-			if (document.visibilityState === "visible" && session) {
-				fetchStats();
-				fetchActiveAnnouncements(false);
+			if (document.visibilityState === "visible") {
+				// Only refetch if page was hidden for more than 2 minutes
+				const hiddenDuration = Date.now() - lastHiddenTime;
+				if (hiddenDuration > 120000) {
+					fetchDashboardData();
+					fetchActiveAnnouncements(false);
+				}
+			} else {
+				lastHiddenTime = Date.now();
 			}
 		};
 		document.addEventListener("visibilitychange", handleVisibilityChange);
 
-		// Refetch when window gains focus
-		const handleFocus = () => {
-			if (session) {
-				fetchStats();
+		// Reduced interval - check announcements every 5 minutes instead of 5 minutes
+		const interval = setInterval(() => {
+			if (document.visibilityState === "visible") {
 				fetchActiveAnnouncements(false);
 			}
-		};
-		window.addEventListener("focus", handleFocus);
+		}, 300000); // 5 minutes
 
 		return () => {
 			document.removeEventListener(
 				"visibilitychange",
 				handleVisibilityChange,
 			);
-			window.removeEventListener("focus", handleFocus);
+			clearInterval(interval);
 		};
-	}, [session]);
-
-	useEffect(() => {
-		if (!session) return;
-
-		const interval = setInterval(() => {
-			if (document.visibilityState !== "visible") return;
-			fetchActiveAnnouncements(false);
-		}, 300000);
-
-		return () => clearInterval(interval);
 	}, [session]);
 
 	return (
@@ -462,7 +374,7 @@ export default function EmployeeDashboard() {
 								<UserAvatar
 									name={session?.user?.name || ""}
 									image={
-										profileImage ||
+										(session?.user as any)?.image ||
 										(session?.user as any)?.profileImage
 									}
 									size='lg'

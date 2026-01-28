@@ -88,7 +88,8 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json({ birthdays: result });
     // Birthdays change daily - cache for 5 minutes with revalidation
-    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    // Requires auth session; keep cache private
+    response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600');
     return response;
   } catch (error: any) {
     console.error('Get upcoming birthdays error:', error);

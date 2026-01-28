@@ -476,17 +476,6 @@ export default function EmployeeLeaveView({
 		}
 	};
 
-	const getStatusIcon = (status: string) => {
-		switch (status) {
-			case "approved":
-				return <CheckCircle className='w-5 h-5 text-green-600' />;
-			case "rejected":
-				return <X className='w-5 h-5 text-red-600' />;
-			default:
-				return <Clock className='w-5 h-5 text-yellow-600' />;
-		}
-	};
-
 	// Separate allotted leaves and leave requests, excluding penalty-related leaves
 	const allottedLeaves = leaves.filter((leave) => {
 		// Exclude penalty-related leaves
@@ -1927,6 +1916,7 @@ export default function EmployeeLeaveView({
 																					),
 																					"MMM dd",
 																				)}
+
 																				)
 																			</span>
 																		);

@@ -2,19 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
-import {
-	Plus,
-	Edit,
-	Trash2,
-	Mail,
-	User,
-	Calendar,
-	Clock,
-	Settings,
-	Search,
-	X,
-	Filter,
-} from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Clock, Search, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useSession } from "next-auth/react";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";

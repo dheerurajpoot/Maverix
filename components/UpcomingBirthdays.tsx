@@ -53,28 +53,6 @@ export default function UpcomingBirthdays() {
 
 	useEffect(() => {
 		fetchUpcomingBirthdays(filterType === "all");
-
-		// Refetch ONLY if user returns after some time (avoid spam)
-		let lastHiddenTime = Date.now();
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === "visible") {
-				const hiddenDuration = Date.now() - lastHiddenTime;
-				// Only refetch if hidden for > 2 minutes
-				if (hiddenDuration > 120000) {
-					fetchUpcomingBirthdays(filterType === "all");
-				}
-			} else {
-				lastHiddenTime = Date.now();
-			}
-		};
-		document.addEventListener("visibilitychange", handleVisibilityChange);
-
-		return () => {
-			document.removeEventListener(
-				"visibilitychange",
-				handleVisibilityChange,
-			);
-		};
 	}, [filterType, fetchUpcomingBirthdays]);
 
 	const getBadgeText = (daysUntil: number, dateOfBirth: string) => {

@@ -224,12 +224,10 @@ export default function EmployeeDashboard() {
 		fetchActiveAnnouncements(false);
 	};
 
-	// Initial data fetch - only once when session is available
 	useEffect(() => {
 		if (session) {
 			fetchDashboardData();
 			fetchUserProfile();
-			fetchActiveAnnouncements(true);
 		}
 	}, [
 		session,
@@ -241,33 +239,12 @@ export default function EmployeeDashboard() {
 	useEffect(() => {
 		if (!session) return;
 
-		let lastHiddenTime = Date.now();
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === "visible") {
-				// Only refetch if page was hidden for more than 2 minutes
-				const hiddenDuration = Date.now() - lastHiddenTime;
-				if (hiddenDuration > 120000) {
-					fetchDashboardData();
-					fetchActiveAnnouncements(false);
-				}
-			} else {
-				lastHiddenTime = Date.now();
-			}
-		};
-		document.addEventListener("visibilitychange", handleVisibilityChange);
-
-		// Reduced interval - check announcements every 5 minutes instead of 5 minutes
+		fetchActiveAnnouncements(false);
 		const interval = setInterval(() => {
-			if (document.visibilityState === "visible") {
-				fetchActiveAnnouncements(false);
-			}
+			fetchActiveAnnouncements(false);
 		}, 300000); // 5 minutes
 
 		return () => {
-			document.removeEventListener(
-				"visibilitychange",
-				handleVisibilityChange,
-			);
 			clearInterval(interval);
 		};
 	}, [session]);

@@ -2,16 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-	Users,
-	Mail,
-	Phone,
-	Crown,
-	Calendar,
-	X,
-	User,
-	Briefcase,
-} from "lucide-react";
+import { Users, Mail, Phone, Crown, Calendar, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import UserAvatar from "./UserAvatar";
 import LoadingDots from "./LoadingDots";
@@ -62,11 +53,11 @@ export default function EmployeeTeamInfo() {
 		} finally {
 			setLoading(false);
 		}
-	}, [toast]);
+	}, []);
 
 	useEffect(() => {
 		fetchMyTeams();
-	}, [fetchMyTeams]);
+	}, []);
 
 	// Fetch employees on leave today
 	const fetchEmployeesOnLeave = useCallback(async () => {
@@ -88,27 +79,17 @@ export default function EmployeeTeamInfo() {
 	}, []);
 
 	useEffect(() => {
-		// Fetch immediately
 		fetchEmployeesOnLeave();
 
 		// Refresh periodically (use events for instant updates)
 		const interval = setInterval(() => {
-			if (document.visibilityState === "visible") {
-				fetchEmployeesOnLeave();
-			}
-		}, 300000);
-
-		// Refresh when window comes into focus
-		const handleFocus = () => {
 			fetchEmployeesOnLeave();
-		};
-		window.addEventListener("focus", handleFocus);
+		}, 300000);
 
 		// Listen for custom event to refresh immediately when leave status changes
 		const handleLeaveStatusChange = () => {
 			// Clear state first, then fetch fresh data
 			setEmployeesOnLeaveToday([]);
-			// Small delay to ensure database is updated
 			setTimeout(() => {
 				fetchEmployeesOnLeave();
 			}, 200);
@@ -117,7 +98,6 @@ export default function EmployeeTeamInfo() {
 
 		return () => {
 			clearInterval(interval);
-			window.removeEventListener("focus", handleFocus);
 			window.removeEventListener(
 				"leaveStatusChanged",
 				handleLeaveStatusChange,

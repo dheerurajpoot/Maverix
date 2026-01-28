@@ -106,23 +106,11 @@ export default function EmployeeSearch() {
 	}, []);
 
 	useEffect(() => {
-		// Fetch immediately
 		fetchEmployeesOnLeave();
-
-		// Refresh periodically (use events for instant updates)
 		const interval = setInterval(() => {
-			if (document.visibilityState === "visible") {
-				fetchEmployeesOnLeave();
-			}
+			fetchEmployeesOnLeave();
 		}, 300000);
 
-		// Refresh when window comes into focus
-		const handleFocus = () => {
-			fetchEmployeesOnLeave();
-		};
-		window.addEventListener("focus", handleFocus);
-
-		// Listen for custom event to refresh immediately when leave status changes
 		const handleLeaveStatusChange = () => {
 			// Clear state first, then fetch fresh data
 			setEmployeesOnLeaveToday([]);
@@ -135,7 +123,6 @@ export default function EmployeeSearch() {
 
 		return () => {
 			clearInterval(interval);
-			window.removeEventListener("focus", handleFocus);
 			window.removeEventListener(
 				"leaveStatusChanged",
 				handleLeaveStatusChange,

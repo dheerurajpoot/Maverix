@@ -118,27 +118,10 @@ export default function LeaveManagement({
 
   // Refetch when page becomes visible (user navigates back)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && onLeaveAdded) {
-        // Trigger parent to refetch
-        onLeaveAdded();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Refetch when window gains focus
-    const handleFocus = () => {
-      if (onLeaveAdded) {
-        onLeaveAdded();
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [onLeaveAdded]);
+    if (onLeaveAdded) {
+      onLeaveAdded();
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

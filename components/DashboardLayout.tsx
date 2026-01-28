@@ -20,17 +20,7 @@ import {
 } from "@tabler/icons-react";
 import UserAvatar from "./UserAvatar";
 import LogoWhite from "./LogoWhite";
-// import LoadingDots from "./LoadingDots";
-// import Logo from "./Logo";
-
-// Loaded on-demand to keep the dashboard layout lean
-const ProfileCompletionBanner = dynamic(
-	() => import("./ProfileCompletionBanner"),
-	{
-		ssr: false,
-		loading: () => null,
-	},
-);
+import ProfileCompletionBanner from "./ProfileCompletionBanner";
 
 interface DashboardLayoutProps {
 	children: React.ReactNode;

@@ -7,9 +7,9 @@ import { formatDistanceToNow } from "date-fns";
 import UserAvatar from "./UserAvatar";
 import { useToast } from "@/contexts/ToastContext";
 import { useSession } from "next-auth/react";
-import LoadingDots from "./LoadingDots";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import MentionPopup from "./MentionPopup";
+import LoadingDots from "./LoadingDots";
 
 interface MentionUser {
 	_id: string;
@@ -109,8 +109,8 @@ export default function Feed() {
 	}, [session]);
 
 	useEffect(() => {
-		fetchPosts();
 		fetchUsers();
+		fetchPosts();
 	}, []);
 
 	const fetchUsers = async () => {
@@ -591,23 +591,32 @@ export default function Feed() {
 				</motion.div>
 
 				{/* Posts Feed */}
-				{posts.length === 0 ? (
-					<motion.div
-						initial={{ opacity: 0, scale: 0.95 }}
-						animate={{ opacity: 1, scale: 1 }}
-						className='bg-white/90 backdrop-blur-sm rounded-md shadow-md border border-gray-100 p-12 text-center'>
-						<div className='inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary/10 to-purple-600/10 rounded-full mb-4'>
-							<MessageSquare className='w-8 h-8 text-primary' />
-						</div>
-						<h3 className='text-lg font-primary font-bold text-gray-800 mb-2'>
-							No posts yet
-						</h3>
-						<p className='text-gray-500 font-secondary'>
-							Be the first to share something with your team!
+				{loading ? (
+					<div className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-8 text-center'>
+						<LoadingDots size='lg' className='mb-3' />
+						<p className='text-sm text-gray-500 font-secondary'>
+							Loading feed...
 						</p>
-					</motion.div>
+					</div>
 				) : (
 					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-0'>
+						{posts.length === 0 && (
+							<motion.div
+								initial={{ opacity: 0, scale: 0.95 }}
+								animate={{ opacity: 1, scale: 1 }}
+								className='bg-white/90 backdrop-blur-sm rounded-md shadow-md border border-gray-100 p-12 text-center'>
+								<div className='inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary/10 to-purple-600/10 rounded-full mb-4'>
+									<MessageSquare className='w-8 h-8 text-primary' />
+								</div>
+								<h3 className='text-lg font-primary font-bold text-gray-800 mb-2'>
+									No posts yet
+								</h3>
+								<p className='text-gray-500 font-secondary'>
+									Be the first to share something with your
+									team!
+								</p>
+							</motion.div>
+						)}
 						{posts.map((post, index) => (
 							<motion.div
 								key={post._id}

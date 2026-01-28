@@ -8,8 +8,6 @@ import {
 	parseISO,
 	startOfMonth,
 	endOfMonth,
-	startOfYear,
-	endOfYear,
 	eachDayOfInterval,
 } from "date-fns";
 import {
@@ -393,25 +391,28 @@ export default function AttendanceManagement({
 	}, [isAdminOrHR]);
 
 	// Fetch default time limit
-	useEffect(() => {
-		fetchDefaultTimeLimit();
-	}, [fetchDefaultTimeLimit]);
+	// useEffect(() => {
+	// 	fetchDefaultTimeLimit();
+	// }, [fetchDefaultTimeLimit]);
 
-	// Fetch user clockInTime and weeklyOff for employee view
-	useEffect(() => {
-		fetchUserClockInTime();
-	}, [fetchUserClockInTime]);
+	// // Fetch user clockInTime and weeklyOff for employee view
+	// useEffect(() => {
+	// 	fetchUserClockInTime();
+	// }, [fetchUserClockInTime]);
 
-	// Fetch leaves for the month
-	useEffect(() => {
-		fetchLeavesForMonth();
-	}, [fetchLeavesForMonth]);
+	// // Fetch leaves for the month
+	// useEffect(() => {
+	// 	fetchLeavesForMonth();
+	// }, []);
 
 	// Fetch attendance when date changes
 	useEffect(() => {
 		if (isAdminOrHR) {
 			fetchAttendance();
 			fetchEmployeesOnLeave();
+			fetchUserClockInTime();
+			fetchLeavesForMonth();
+			fetchDefaultTimeLimit();
 			fetchPenalties();
 		} else {
 			// For employees, fetch penalties for the month view

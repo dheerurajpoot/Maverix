@@ -45,8 +45,10 @@ export default function EmployeeTeamInfo() {
 
 			if (res.ok) {
 				setTeams(data.teams || []);
+				setLoading(false);
 			} else {
 				toast.error(data.error || "Failed to fetch team information");
+				setLoading(false);
 			}
 		} catch (err: any) {
 			toast.error("An error occurred while fetching team information");
@@ -81,11 +83,6 @@ export default function EmployeeTeamInfo() {
 	useEffect(() => {
 		fetchEmployeesOnLeave();
 
-		// Refresh periodically (use events for instant updates)
-		const interval = setInterval(() => {
-			fetchEmployeesOnLeave();
-		}, 300000);
-
 		// Listen for custom event to refresh immediately when leave status changes
 		const handleLeaveStatusChange = () => {
 			// Clear state first, then fetch fresh data
@@ -97,13 +94,12 @@ export default function EmployeeTeamInfo() {
 		window.addEventListener("leaveStatusChanged", handleLeaveStatusChange);
 
 		return () => {
-			clearInterval(interval);
 			window.removeEventListener(
 				"leaveStatusChanged",
 				handleLeaveStatusChange,
 			);
 		};
-	}, [fetchEmployeesOnLeave]);
+	}, []);
 
 	if (loading) {
 		return (

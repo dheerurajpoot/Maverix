@@ -11,19 +11,12 @@ import {
 	Save,
 	X,
 	Calendar,
-	Edit3,
 	Shield,
-	UserCircle,
-	Sparkles,
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import Image from "next/image";
 import LoadingDots from "./LoadingDots";
-import {
-	compressImage,
-	blobToFile,
-	getFileSizeKB,
-} from "@/utils/imageCompression";
+import { compressImage, blobToFile } from "@/utils/imageCompression";
 
 interface UserProfile {
 	_id: string;
@@ -123,24 +116,22 @@ export default function Profile() {
 			return;
 		}
 
-		// Validate file size (max 10MB before compression)
-		if (file.size > 10 * 1024 * 1024) {
-			toast.error("Image size must be less than 10MB");
+		// Validate file size (max 5MB before compression)
+		if (file.size > 5 * 1024 * 1024) {
+			toast.error("Image size must be less than 5MB");
 			return;
 		}
 
 		try {
 			setUploading(true);
 
-			// Compress image to max 80KB
-			const originalSizeKB = getFileSizeKB(file);
-			const compressedBlob = await compressImage(file, 80, 800, 800);
+			// Compress image for better performance (max 200KB, 800x800)
+			const compressedBlob = await compressImage(file, 200, 800, 800);
 			const compressedFile = blobToFile(
 				compressedBlob,
 				file.name,
 				"image/jpeg",
 			);
-			const compressedSizeKB = getFileSizeKB(compressedFile);
 
 			// Show preview of compressed image
 			const reader = new FileReader();
@@ -149,7 +140,7 @@ export default function Profile() {
 			};
 			reader.readAsDataURL(compressedFile);
 
-			// Upload compressed file
+			// Upload compressed file to ImageKit
 			const uploadFormData = new FormData();
 			uploadFormData.append("file", compressedFile, file.name);
 
@@ -160,8 +151,8 @@ export default function Profile() {
 
 			const uploadData = await uploadRes.json();
 
-			if (uploadRes.ok) {
-				// Update profile with new image URL
+			if (uploadRes.ok && uploadData.url) {
+				// Update profile with ImageKit URL
 				const updateRes = await fetch("/api/profile", {
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
@@ -172,8 +163,10 @@ export default function Profile() {
 
 				if (updateRes.ok) {
 					setProfile(updateData.user);
+					// Update preview to use ImageKit URL
+					setPreviewImage(uploadData.url);
 					toast.success("Profile picture updated successfully");
-					// Dispatch event to notify other components (like ProfileCompletionBanner)
+					// Dispatch event to notify other components
 					window.dispatchEvent(new CustomEvent("profileUpdated"));
 				} else {
 					toast.error(
@@ -186,9 +179,9 @@ export default function Profile() {
 				setPreviewImage(profile?.profileImage || null);
 			}
 		} catch (err: any) {
-			console.error("Image compression/upload error:", err);
+			console.error("Image upload error:", err);
 			toast.error(
-				err.message || "An error occurred while processing image",
+				err.message || "An error occurred while uploading image",
 			);
 			setPreviewImage(profile?.profileImage || null);
 		} finally {
@@ -305,18 +298,18 @@ export default function Profile() {
 		return name[0].toUpperCase();
 	};
 
-	if (loading) {
-		return (
-			<div className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-8 border border-white/50'>
-				<div className='flex flex-col items-center justify-center py-8'>
-					<LoadingDots size='lg' className='mb-3' />
-					<p className='text-sm text-gray-500 font-secondary'>
-						Loading profile...
-					</p>
-				</div>
-			</div>
-		);
-	}
+	// if (loading) {
+	// 	return (
+	// 		<div className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-8 border border-white/50'>
+	// 			<div className='flex flex-col items-center justify-center py-8'>
+	// 				<LoadingDots size='lg' className='mb-3' />
+	// 				<p className='text-sm text-gray-500 font-secondary'>
+	// 					Loading profile...
+	// 				</p>
+	// 			</div>
+	// 		</div>
+	// 	);
+	// }
 
 	return (
 		<div className='space-y-4'>

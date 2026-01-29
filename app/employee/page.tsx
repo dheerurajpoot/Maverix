@@ -57,10 +57,8 @@ export default function EmployeeDashboard() {
 		}
 	};
 
-	// Update greeting on mount and when time changes
 	useEffect(() => {
 		setGreeting(getGreeting());
-		// Update greeting every minute to handle day transitions
 		const interval = setInterval(() => {
 			setGreeting(getGreeting());
 		}, 300000); // Check every 5 minutes
@@ -68,11 +66,11 @@ export default function EmployeeDashboard() {
 		return () => clearInterval(interval);
 	}, []);
 
-	// Consolidated API call - fetches all dashboard data in one request
+	//fetches all dashboard data in one request
 	const fetchDashboardData = useCallback(async () => {
 		try {
 			setLoading(true);
-			const response = await axios.get("/api/employee/dashboard");
+			const response = await axios.get("/api/employees/dashboard");
 			const data = response.data;
 
 			if (data.stats) {
@@ -86,7 +84,7 @@ export default function EmployeeDashboard() {
 		} finally {
 			setLoading(false);
 		}
-	}, [toast]);
+	}, []);
 
 	// Fetch user profile only once - check for birthday
 	const fetchUserProfile = useCallback(async () => {
@@ -229,24 +227,11 @@ export default function EmployeeDashboard() {
 			fetchDashboardData();
 			fetchUserProfile();
 		}
-	}, [
-		session,
-		fetchDashboardData,
-		fetchUserProfile,
-		fetchActiveAnnouncements,
-	]);
+	}, [session]);
 
 	useEffect(() => {
 		if (!session) return;
-
 		fetchActiveAnnouncements(false);
-		const interval = setInterval(() => {
-			fetchActiveAnnouncements(false);
-		}, 300000); // 5 minutes
-
-		return () => {
-			clearInterval(interval);
-		};
 	}, [session]);
 
 	return (

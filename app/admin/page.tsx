@@ -61,19 +61,19 @@ export default function AdminDashboard() {
 	const [showPayslipModal, setShowPayslipModal] = useState(false);
 
 	// Verify admin role
-	useEffect(() => {
-		if (session) {
-			const userRole = (session.user as any)?.role;
-			if (userRole !== "admin") {
-				if (userRole === "hr" || userRole === "employee") {
-					router.push("/employee");
-				} else {
-					router.push("/");
-				}
-				return;
-			}
-		}
-	}, [session]);
+	// useEffect(() => {
+	// 	if (session) {
+	// 		const userRole = (session.user as any)?.role;
+	// 		if (userRole !== "admin") {
+	// 			if (userRole === "hr" || userRole === "employee") {
+	// 				router.push("/employee");
+	// 			} else {
+	// 				router.push("/");
+	// 			}
+	// 			return;
+	// 		}
+	// 	}
+	// }, [session]);
 
 	useEffect(() => {
 		const fetchProfileImage = async () => {

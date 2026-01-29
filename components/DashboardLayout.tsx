@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import {
 	IconLayoutDashboard,
 	IconUsers,
@@ -34,7 +33,6 @@ export default function DashboardLayout({
 	const { data: session, status } = useSession();
 	const [mounted, setMounted] = useState(false);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
-	const [profileImage, setProfileImage] = useState<string | null>(null);
 	const pathname = usePathname();
 	const router = useRouter();
 
@@ -42,41 +40,7 @@ export default function DashboardLayout({
 		setMounted(true);
 	}, []);
 
-	// Fetch profileImage if not in session
 	useEffect(() => {
-		const fetchProfileImage = async () => {
-			// First check if profileImage is in session
-			const sessionImage =
-				(session?.user as any)?.image ||
-				(session?.user as any)?.profileImage;
-			if (sessionImage) {
-				setProfileImage(sessionImage);
-				return;
-			}
-
-			// If not in session, fetch it from API
-			try {
-				const res = await fetch("/api/profile/image");
-				const data = await res.json();
-				if (res.ok && data.profileImage) {
-					setProfileImage(data.profileImage);
-				}
-			} catch (err) {
-				console.error("Error fetching profile image:", err);
-			}
-		};
-
-		if (session && status === "authenticated") {
-			fetchProfileImage();
-		}
-	}, [session]);
-
-	// Verify that the user's role matches the expected role
-	useEffect(() => {
-		if (!mounted || !router) return; // Wait for client-side mount and ensure router is available
-
-		// if (status === "loading") return; // Still loading session
-
 		if (status === "unauthenticated") {
 			router.push("/");
 			return;
@@ -85,7 +49,6 @@ export default function DashboardLayout({
 		if (session) {
 			const userRole = (session.user as any)?.role;
 
-			// If role doesn't match, redirect to the correct dashboard
 			if (userRole !== role) {
 				if (userRole === "admin") {
 					router.push("/admin");
@@ -155,41 +118,16 @@ export default function DashboardLayout({
 
 	const handleLogout = async () => {
 		try {
-			// Sign out without redirect first
 			await signOut({ redirect: false });
-			// Then manually redirect using current origin to ensure it works on mobile
 			window.location.href = window.location.origin + "/";
 		} catch (error) {
 			console.error("Logout error:", error);
-			// Fallback: if signOut fails, force redirect using current origin
 			window.location.href = window.location.origin + "/";
 		}
 	};
 
-	// Use profileImage from state (fetched from API if not in session) or fallback to session
-	const userImage =
-		profileImage ||
-		(session?.user as any)?.image ||
-		(session?.user as any)?.profileImage;
+	const userImage = (session?.user as any)?.profileImage;
 	const userName = session?.user?.name;
-	// const userRole = (session?.user as any)?.role;
-
-	// // Show loading state while session is loading or role doesn't match
-	// if (status === 'loading' || (session && userRole !== role)) {
-	//   return (
-	//     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-	//       <div className="text-center">
-	//         <LoadingDots size="lg" />
-	//         <p className="mt-4 text-gray-600 font-secondary">Loading...</p>
-	//       </div>
-	//     </div>
-	//   );
-	// }
-
-	// If not authenticated, don't render (redirect will happen in useEffect)
-	// if (status === "unauthenticated" || !session) {
-	// 	return null;
-	// }
 
 	return (
 		<div className='min-h-screen bg-gray-50'>

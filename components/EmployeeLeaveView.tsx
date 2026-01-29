@@ -113,13 +113,22 @@ export default function EmployeeLeaveView({
 	const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
 	const toast = useToast();
 
+	console.log("Initial Leave: ", initialLeaves);
+
 	const fetchAllottedLeaveTypes = async () => {
 		try {
-			const res = await fetch("/api/leave/allotted-types");
+			setLoading(true);
+			const res = await fetch("/api/leave/allotted-types", {
+				cache: "no-store",
+				headers: { "Cache-Control": "no-cache" },
+			});
 			const data = await res.json();
 			setLeaveTypes(data.leaveTypes || []);
+			setLoading(false);
 		} catch (err) {
 			console.error("Error fetching allotted leave types:", err);
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -534,11 +543,11 @@ export default function EmployeeLeaveView({
 			</div>
 
 			{/* Allotted Leaves Cards with Circle Charts */}
-			{allottedLeaves.length === 0 ? (
+			{allottedLeaves.length === 0 && loading ? (
 				<div className='bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center'>
-					<Calendar className='w-12 h-12 text-gray-400 mx-auto mb-3' />
+					<LoadingDots size='lg' className='mb-3' />
 					<p className='text-gray-600 font-secondary'>
-						No leaves allotted yet
+						Loading allotted leaves...
 					</p>
 				</div>
 			) : (

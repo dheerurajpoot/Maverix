@@ -1,65 +1,37 @@
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
-import EmployeeLeaveView from '@/components/EmployeeLeaveView';
-import LoadingDots from '@/components/LoadingDots';
+import { useEffect, useState } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
+import EmployeeLeaveView from "@/components/EmployeeLeaveView";
 
 export default function EmployeeLeavesPage() {
-  const { data: session } = useSession();
-  const [leaves, setLeaves] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+	const [leaves, setLeaves] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchLeaves();
+	useEffect(() => {
+		fetchLeaves();
+	}, []);
 
-    // Refetch when page becomes visible (user navigates back)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchLeaves();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+	const fetchLeaves = async () => {
+		try {
+			const res = await fetch(`/api/leave?t=${Date.now()}`, {
+				cache: "no-store",
+				headers: { "Cache-Control": "no-cache" },
+			});
+			const data = await res.json();
+			setLeaves(data.leaves || []);
+		} catch (err) {
+			console.error("Error fetching leaves:", err);
+		}
+	};
 
-    // Refetch when window gains focus
-    const handleFocus = () => {
-      fetchLeaves();
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
-
-  const fetchLeaves = async () => {
-    try {
-      const res = await fetch(`/api/leave?t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
-      const data = await res.json();
-      setLeaves(data.leaves || []);
-    } catch (err) {
-      console.error('Error fetching leaves:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <DashboardLayout role="employee">
-      <div className="space-y-4">
-
-        {loading ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 flex flex-col items-center justify-center">
-            <LoadingDots size="lg" className="mb-3" />
-            <p className="text-sm text-gray-500 font-secondary">Loading leave information...</p>
-          </div>
-        ) : (
-          <EmployeeLeaveView initialLeaves={leaves} onLeavesUpdated={fetchLeaves} />
-        )}
-      </div>
-    </DashboardLayout>
-  );
+	return (
+		<DashboardLayout role='employee'>
+			<div className='space-y-4'>
+				<EmployeeLeaveView
+					initialLeaves={leaves}
+					onLeavesUpdated={fetchLeaves}
+				/>
+			</div>
+		</DashboardLayout>
+	);
 }
-

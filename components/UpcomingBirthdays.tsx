@@ -27,33 +27,28 @@ export default function UpcomingBirthdays() {
 	);
 	const toast = useToast();
 
-	const fetchUpcomingBirthdays = useCallback(
-		async (fetchAll: boolean = false) => {
-			try {
-				setLoading(true);
-				// IMPORTANT: first query param must start with '?', not '&'
-				const url = fetchAll
-					? "/employees/upcoming-birthdays?all=true"
-					: "/employees/upcoming-birthdays";
+	// Fetch all birthdays once - filter client-side
+	const fetchUpcomingBirthdays = useCallback(async () => {
+		try {
+			setLoading(true);
+			const response = await axios.get(
+				"/api/employees/upcoming-birthdays?all=true",
+			);
+			setBirthdays(response.data.birthdays || []);
+		} catch (err: any) {
+			const message =
+				err?.response?.data?.error ||
+				"An error occurred while fetching upcoming birthdays";
+			toast.error(message);
+		} finally {
+			setLoading(false);
+		}
+	}, []);
 
-				const response = await axios.get(`/api${url}`);
-				setBirthdays(response.data.birthdays || []);
-			} catch (err: any) {
-				console.log("err", err);
-				const message =
-					err?.response?.data?.error ||
-					"An error occurred while fetching upcoming birthdays";
-				toast.error(message);
-			} finally {
-				setLoading(false);
-			}
-		},
-		[],
-	);
-
+	// Fetch once on mount, filter happens client-side
 	useEffect(() => {
-		fetchUpcomingBirthdays(filterType === "all");
-	}, [filterType, fetchUpcomingBirthdays]);
+		fetchUpcomingBirthdays();
+	}, [fetchUpcomingBirthdays]);
 
 	const getBadgeText = (daysUntil: number, dateOfBirth: string) => {
 		if (daysUntil === 0) {

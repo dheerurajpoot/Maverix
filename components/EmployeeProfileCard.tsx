@@ -3,28 +3,18 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import {
-	User,
-	Mail,
-	Phone,
-	Briefcase,
-	Calendar,
-	IdCard,
-	Globe,
-} from "lucide-react";
+import { User, Mail, Phone, Briefcase, Calendar, Globe } from "lucide-react";
 import { format } from "date-fns";
 import LoadingDots from "./LoadingDots";
 
 export default function EmployeeProfileCard() {
 	const { data: session } = useSession();
 	const [userProfile, setUserProfile] = useState<any>(null);
-	const [profileImage, setProfileImage] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
 		if (session) {
 			fetchUserProfile();
-			fetchProfileImage();
 		}
 	}, [session]);
 
@@ -39,26 +29,6 @@ export default function EmployeeProfileCard() {
 			console.error("Error fetching user profile:", err);
 		} finally {
 			setLoading(false);
-		}
-	};
-
-	const fetchProfileImage = async () => {
-		try {
-			const sessionImage =
-				(session?.user as any)?.image ||
-				(session?.user as any)?.profileImage;
-			if (sessionImage) {
-				setProfileImage(sessionImage);
-				return;
-			}
-
-			const res = await fetch("/api/profile/image");
-			const data = await res.json();
-			if (res.ok && data.profileImage) {
-				setProfileImage(data.profileImage);
-			}
-		} catch (err) {
-			console.error("Error fetching profile image:", err);
 		}
 	};
 
@@ -94,11 +64,11 @@ export default function EmployeeProfileCard() {
 							{/* Profile Picture */}
 							<div className='relative flex-shrink-0'>
 								<div className='w-[50px] h-[50px] rounded-full overflow-hidden border-2 border-gray-200 shadow-md bg-white'>
-									{profileImage ||
+									{userProfile?.profileImage ||
 									(session?.user as any)?.profileImage ? (
 										<img
 											src={
-												profileImage ||
+												userProfile?.profileImage ||
 												(session?.user as any)
 													?.profileImage
 											}

@@ -614,18 +614,7 @@ export default function AttendanceManagement({
 	}, []);
 
 	// For admin/hr: Show daily view with all employees
-	// Show loading state if employees haven't loaded yet
 	if (isAdminOrHR) {
-		// If employees are still loading, show loading state instead of employee view
-		// if (loading) {
-		//   return (
-		//     <div className="bg-white/95 backdrop-blur-xl rounded-md shadow-lg border border-white/50 p-12 flex flex-col items-center justify-center">
-		//       <LoadingDots size="lg" className="mb-3" />
-		//       <p className="text-sm text-gray-500 font-secondary">Loading attendance data...</p>
-		//     </div>
-		//   );
-		// }
-
 		// If dailyAttendance is null (employees not loaded yet), show loading
 		if (!dailyAttendance) {
 			return (

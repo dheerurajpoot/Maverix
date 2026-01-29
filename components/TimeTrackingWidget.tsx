@@ -277,8 +277,6 @@ export default function TimeTrackingWidget() {
 		// Set mounted flag and initial time on client side only
 		setMounted(true);
 		setCurrentTime(new Date());
-
-		checkClockStatus();
 		fetchRecentAttendance();
 
 		// Update current time every second
@@ -296,15 +294,12 @@ export default function TimeTrackingWidget() {
 			checkAutoClockOut();
 		}, 60000); // Check every minute
 
-		// Initial check for auto clock-out
-		checkAutoClockOut();
-
 		return () => {
 			clearInterval(timeInterval);
 			clearInterval(statusInterval);
 			clearInterval(autoClockOutInterval);
 		};
-	}, [checkAutoClockOut]);
+	}, []);
 
 	// Also check when clockedIn status changes
 	useEffect(() => {
@@ -349,11 +344,6 @@ export default function TimeTrackingWidget() {
 			setLoading(false);
 		}
 	};
-
-	// const formatTime = (date: Date | string) => {
-	//   const d = typeof date === 'string' ? new Date(date) : date;
-	//   return format(d, 'hh:mm:ss a');
-	// };
 
 	const formatDate = (date: Date | string) => {
 		const d = typeof date === "string" ? new Date(date) : date;
@@ -415,12 +405,6 @@ export default function TimeTrackingWidget() {
 	const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 	const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
-	// Get attendance dates for calendar highlighting
-	// const attendanceDates = recentAttendance.map(record => {
-	//   const date = new Date(record.date);
-	//   return format(date, 'yyyy-MM-dd');
-	// });
-
 	// Helper function to clean description text
 	const cleanDescription = (description: string): string => {
 		if (!description) return "";
@@ -480,7 +464,7 @@ export default function TimeTrackingWidget() {
 	// Fetch events when month changes
 	useEffect(() => {
 		fetchCalendarEvents();
-	}, [fetchCalendarEvents]);
+	}, []);
 
 	return (
 		<>

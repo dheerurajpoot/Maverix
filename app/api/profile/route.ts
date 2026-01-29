@@ -8,6 +8,7 @@ import { generateEmployeeId, extractEmployeeIdSequence } from '@/utils/generateE
 
 export const dynamic = 'force-dynamic';
 
+// GET - Fetch user profile (excludes password)
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,50 +19,22 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Check if profileImage should be included (via query parameter)
-    const { searchParams } = new URL(request.url);
-    const includeImage = searchParams.get('includeImage') === 'true';
-
-    // Build select fields - exclude password, conditionally exclude profileImage
-    let selectFields = '-password';
-    if (!includeImage) {
-      // Exclude profileImage by default to prevent slow API responses
-      // Large base64 images can be several MB and slow down dashboard loads
-      selectFields += ' -profileImage';
-    }
-
-    const user = await User.findById((session.user as any).id).select(selectFields);
+    const user = await User.findById((session.user as any).id)
+      .select('-password')
+      .lean();
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Convert to plain object and handle large profileImage
-    const userObj = user.toObject ? user.toObject() : user;
-    
-    // If profileImage is included and too large, exclude it to prevent issues
-    if (includeImage && userObj.profileImage && typeof userObj.profileImage === 'string') {
-      // If profileImage is larger than 100KB, exclude it (too large for API response)
-      if (userObj.profileImage.length > 100000) {
-        console.warn(`ProfileImage too large (${userObj.profileImage.length} bytes), excluding from response`);
-        userObj.profileImage = undefined;
-      }
-    }
-
-    const response = NextResponse.json({ user: userObj });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
-    return response;
+    return NextResponse.json({ user });
   } catch (error: any) {
     console.error('Get profile error:', error);
-    const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    return errorResponse;
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
 
+// PUT - Update user profile
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -70,7 +43,22 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, mobileNumber, dateOfBirth, joiningYear, profileImage, currentPassword, newPassword, bankName, accountNumber, ifscCode, location, panNumber, aadharNumber } = await request.json();
+    const body = await request.json();
+    const {
+      name,
+      mobileNumber,
+      dateOfBirth,
+      joiningYear,
+      profileImage,
+      currentPassword,
+      newPassword,
+      bankName,
+      accountNumber,
+      ifscCode,
+      location,
+      panNumber,
+      aadharNumber,
+    } = body;
 
     await connectDB();
 
@@ -85,7 +73,6 @@ export async function PUT(request: NextRequest) {
     const isClearingJoiningYear =
       joiningYear === null || joiningYear === '' || (typeof joiningYear === 'string' && joiningYear.trim() === '');
 
-    // Build update object
     const updateFields: any = {};
 
     // Update name
@@ -98,12 +85,10 @@ export async function PUT(request: NextRequest) {
       updateFields.mobileNumber = mobileNumber || null;
     }
 
-    // Update date of birth - always include if provided in request
+    // Update date of birth
     if (dateOfBirth !== undefined) {
       if (dateOfBirth && typeof dateOfBirth === 'string' && dateOfBirth.trim() !== '') {
         try {
-          // Parse the date string (format: YYYY-MM-DD)
-          // Use UTC to avoid timezone shifts
           const [year, month, day] = dateOfBirth.split('-').map(Number);
           const dobDate = new Date(Date.UTC(year, month - 1, day));
           if (!isNaN(dobDate.getTime())) {
@@ -112,27 +97,21 @@ export async function PUT(request: NextRequest) {
             updateFields.dateOfBirth = null;
           }
         } catch (error) {
-          console.error('Error parsing dateOfBirth:', error);
           updateFields.dateOfBirth = null;
         }
       } else {
-        // Set to null if empty string or null
         updateFields.dateOfBirth = null;
       }
     }
 
     // Update joining year
     if (joiningYear !== undefined) {
-      // Handle null or empty values
       if (isClearingJoiningYear) {
-        // We'll unset in the DB update operation below; keep updateFields minimal.
+        // Will be unset below
       } else {
-        // Convert to number if it's a string
         const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : joiningYear;
-        
         if (!isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
           updateFields.joiningYear = yearNum;
-          // Track the time joiningYear was first set (for global empId ordering)
           if (!previousJoiningYear) {
             updateFields.joiningYearUpdatedAt = new Date();
           }
@@ -156,33 +135,22 @@ export async function PUT(request: NextRequest) {
       updateFields.ifscCode = ifscCode && ifscCode.trim() !== '' ? ifscCode.toUpperCase().trim() : null;
     }
 
-    // Update location - always update if provided (even if empty string)
-    // Explicitly check for undefined to distinguish from empty string
-    if (location !== undefined && location !== null) {
-      const trimmedLocation = typeof location === 'string' ? location.trim() : location;
-      updateFields.location = trimmedLocation && trimmedLocation !== '' ? trimmedLocation : null;
-    } else if (location === null || location === '') {
-      // Explicitly set to null if provided as null or empty string
-      updateFields.location = null;
+    // Update location
+    if (location !== undefined) {
+      updateFields.location = location && location.trim() !== '' ? location.trim() : null;
     }
 
-    // Update PAN number - always update if provided (even if empty string)
-    if (panNumber !== undefined && panNumber !== null) {
-      const trimmedPan = typeof panNumber === 'string' ? panNumber.trim() : panNumber;
-      updateFields.panNumber = trimmedPan && trimmedPan !== '' ? trimmedPan.toUpperCase() : null;
-    } else if (panNumber === null || panNumber === '') {
-      updateFields.panNumber = null;
+    // Update PAN number
+    if (panNumber !== undefined) {
+      updateFields.panNumber = panNumber && panNumber.trim() !== '' ? panNumber.toUpperCase().trim() : null;
     }
 
-    // Update Aadhar number - always update if provided (even if empty string)
-    if (aadharNumber !== undefined && aadharNumber !== null) {
-      const trimmedAadhar = typeof aadharNumber === 'string' ? aadharNumber.trim() : aadharNumber;
-      updateFields.aadharNumber = trimmedAadhar && trimmedAadhar !== '' ? trimmedAadhar : null;
-    } else if (aadharNumber === null || aadharNumber === '') {
-      updateFields.aadharNumber = null;
+    // Update Aadhar number
+    if (aadharNumber !== undefined) {
+      updateFields.aadharNumber = aadharNumber && aadharNumber.trim() !== '' ? aadharNumber.trim() : null;
     }
 
-    // Update password if provided
+    // Update password
     if (currentPassword && newPassword) {
       const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isPasswordValid) {
@@ -196,28 +164,24 @@ export async function PUT(request: NextRequest) {
       updateFields.password = await bcrypt.hash(newPassword, 10);
     }
 
-    // Ensure we have at least one field to update.
-    // Note: clearing joiningYear sends `joiningYear` but results in only $unset operations.
+    // Check if there are fields to update
     if (Object.keys(updateFields).length === 0 && joiningYear === undefined) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    // Update user using findByIdAndUpdate to ensure all fields are saved
+    // Build update operation
     const updateOp: any = { $set: updateFields };
     if (isClearingJoiningYear) {
       updateOp.$unset = { joiningYear: '', joiningYearUpdatedAt: '', empId: '' };
     }
 
+    // Update user
     const updatedUser = await User.findByIdAndUpdate(userId, updateOp, {
       new: true,
       runValidators: true,
     });
 
-    // If joiningYear was cleared, it was unset together with empId in the update operation above.
-
-    // Employee ID rule:
-    // - When joiningYear is set, empId should be YYYYEMP-### using a GLOBAL sequence.
-    // - If joiningYear changes later, update only the year prefix and keep the same ### sequence.
+    // Handle employee ID generation
     if (updatedUser?.joiningYear) {
       const currentEmpId = updatedUser.empId;
       if (!currentEmpId) {
@@ -233,43 +197,11 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Use the updatedUser directly instead of querying again to ensure we have the latest data
-    // Convert to plain object and exclude sensitive fields
-    let userResponse: any;
-    
-    if (updatedUser) {
-      userResponse = updatedUser.toObject ? updatedUser.toObject() : updatedUser;
-      // Remove password and profileImage from response
-      delete userResponse.password;
-      if (!updateFields.profileImage) {
-        delete userResponse.profileImage;
-      }
-    } else {
-      // Fallback: query the user if updatedUser is not available
-      const queriedUser = await User.findById(userId)
-        .select('-password -profileImage')
-        .lean();
-      
-      if (!queriedUser) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
-      }
-      userResponse = queriedUser;
-    }
-    
-    // Explicitly ensure these fields are in the response (even if null/undefined)
-    // This guarantees they're always included in the JSON response
-    userResponse.location = userResponse.location !== undefined ? userResponse.location : null;
-    userResponse.panNumber = userResponse.panNumber !== undefined ? userResponse.panNumber : null;
-    userResponse.aadharNumber = userResponse.aadharNumber !== undefined ? userResponse.aadharNumber : null;
+    // Fetch updated user without password
+    const userResponse = await User.findById(userId).select('-password').lean();
 
-    // If profileImage was just updated, include it in response (it's already in the updateFields)
-    if (updateFields.profileImage !== undefined) {
-      // Only include if it's not too large
-      if (updateFields.profileImage && typeof updateFields.profileImage === 'string' && updateFields.profileImage.length <= 100000) {
-        userResponse.profileImage = updateFields.profileImage;
-      } else if (updateFields.profileImage === null) {
-        userResponse.profileImage = undefined;
-      }
+    if (!userResponse) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -281,4 +213,3 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
-

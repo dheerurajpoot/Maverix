@@ -2,15 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-	Search,
-	X,
-	Mail,
-	Phone,
-	User,
-	Calendar,
-	Briefcase,
-} from "lucide-react";
+import { Search, X, Mail, Phone, Calendar, Briefcase } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import LoadingDots from "./LoadingDots";
 import Image from "next/image";
@@ -107,9 +99,6 @@ export default function EmployeeSearch() {
 
 	useEffect(() => {
 		fetchEmployeesOnLeave();
-		const interval = setInterval(() => {
-			fetchEmployeesOnLeave();
-		}, 300000);
 
 		const handleLeaveStatusChange = () => {
 			// Clear state first, then fetch fresh data
@@ -122,13 +111,12 @@ export default function EmployeeSearch() {
 		window.addEventListener("leaveStatusChanged", handleLeaveStatusChange);
 
 		return () => {
-			clearInterval(interval);
 			window.removeEventListener(
 				"leaveStatusChanged",
 				handleLeaveStatusChange,
 			);
 		};
-	}, [fetchEmployeesOnLeave]);
+	}, []);
 
 	return (
 		<div className='relative' ref={searchRef}>

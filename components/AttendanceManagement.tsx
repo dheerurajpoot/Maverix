@@ -611,21 +611,30 @@ export default function AttendanceManagement({
 		};
 
 		return dailyData;
-	}, []);
+	}, [
+		isAdminOrHR,
+		employees,
+		attendance,
+		selectedDate,
+		searchTerm,
+		statusFilter,
+		employeesOnLeave,
+		isLateClockIn,
+	]);
 
 	// For admin/hr: Show daily view with all employees
 	if (isAdminOrHR) {
 		// If dailyAttendance is null (employees not loaded yet), show loading
-		if (!dailyAttendance) {
-			return (
-				<div className='bg-white/95 backdrop-blur-xl rounded-md shadow-lg border border-white/50 p-12 flex flex-col items-center justify-center'>
-					<LoadingDots size='lg' className='mb-3' />
-					<p className='text-sm text-gray-500 font-secondary'>
-						Loading attendance data...
-					</p>
-				</div>
-			);
-		}
+		// if (!dailyAttendance) {
+		// 	return (
+		// 		<div className='bg-white/95 backdrop-blur-xl rounded-md shadow-lg border border-white/50 p-12 flex flex-col items-center justify-center'>
+		// 			<LoadingDots size='lg' className='mb-3' />
+		// 			<p className='text-sm text-gray-500 font-secondary'>
+		// 				Loading attendance data...
+		// 			</p>
+		// 		</div>
+		// 	);
+		// }
 
 		const isToday = isSameDay(selectedDate, new Date());
 
@@ -759,10 +768,10 @@ export default function AttendanceManagement({
 									Total:
 								</span>
 								<span className='text-lg font-bold text-blue-700 font-primary'>
-									{dailyAttendance.employees.length}
+									{dailyAttendance?.employees.length}
 								</span>
 								<span className='text-xs text-gray-600 font-secondary'>
-									{dailyAttendance.employees.length === 1
+									{dailyAttendance?.employees.length === 1
 										? "employee"
 										: "employees"}
 								</span>
@@ -778,7 +787,7 @@ export default function AttendanceManagement({
 								Loading attendance data...
 							</p>
 						</div>
-					) : dailyAttendance.employees.length === 0 ? (
+					) : dailyAttendance?.employees.length === 0 ? (
 						<div className='bg-white/95 backdrop-blur-xl rounded-md shadow-lg border border-white/50 p-12 text-center'>
 							<Clock className='w-12 h-12 text-gray-400 mx-auto mb-3' />
 							<p className='text-gray-600 font-secondary'>
@@ -815,302 +824,311 @@ export default function AttendanceManagement({
 									<tbody
 										className='bg-white divide-y divide-gray-100'
 										style={{ overflow: "visible" }}>
-										{dailyAttendance.employees.map(
-											(item, index) => {
-												const att = item.attendance;
-												const hasClockedIn =
-													!!att?.clockIn;
-												const hasClockedOut =
-													!!att?.clockOut;
-												const isOnLeave =
-													employeesOnLeave.has(
-														item.employee._id,
-													);
+										{dailyAttendance &&
+											dailyAttendance.employees.map(
+												(item, index) => {
+													const att = item.attendance;
+													const hasClockedIn =
+														!!att?.clockIn;
+													const hasClockedOut =
+														!!att?.clockOut;
+													const isOnLeave =
+														employeesOnLeave.has(
+															item.employee._id,
+														);
 
-												// Check if today is weekly off for this employee
-												const selectedDayName = format(
-													selectedDate,
-													"EEEE",
-												); // Gets day name like "Monday"
-												const isWeeklyOff =
-													item.employee.weeklyOff?.includes(
-														selectedDayName,
-													) || false;
+													// Check if today is weekly off for this employee
+													const selectedDayName =
+														format(
+															selectedDate,
+															"EEEE",
+														); // Gets day name like "Monday"
+													const isWeeklyOff =
+														item.employee.weeklyOff?.includes(
+															selectedDayName,
+														) || false;
 
-												return (
-													<motion.tr
-														key={item.employee._id}
-														initial={{
-															opacity: 0,
-															y: 10,
-														}}
-														animate={{
-															opacity: 1,
-															y: 0,
-														}}
-														transition={{
-															delay: index * 0.02,
-														}}
-														className={`transition-colors ${
-															isOnLeave
-																? "bg-orange-50"
-																: isWeeklyOff
-																	? "bg-purple-200"
-																	: "hover:bg-gray-50"
-														}`}>
-														<td className='px-4 py-4 whitespace-nowrap overflow-visible'>
-															<div className='flex items-center gap-2.5'>
-																<UserAvatar
-																	name={
-																		item
-																			.employee
-																			.name
-																	}
-																	image={
-																		item
-																			.employee
-																			.profileImage
-																	}
-																	size='sm'
-																/>
-																<div className='min-w-0 flex-1 overflow-visible'>
-																	<div className='flex flex-col'>
-																		<div className='flex items-center gap-2 flex-wrap overflow-visible'>
-																			<span
-																				className={`text-sm font-semibold font-primary ${
+													return (
+														<motion.tr
+															key={
+																item.employee
+																	._id
+															}
+															initial={{
+																opacity: 0,
+																y: 10,
+															}}
+															animate={{
+																opacity: 1,
+																y: 0,
+															}}
+															transition={{
+																delay:
+																	index *
+																	0.02,
+															}}
+															className={`transition-colors ${
+																isOnLeave
+																	? "bg-orange-50"
+																	: isWeeklyOff
+																		? "bg-purple-200"
+																		: "hover:bg-gray-50"
+															}`}>
+															<td className='px-4 py-4 whitespace-nowrap overflow-visible'>
+																<div className='flex items-center gap-2.5'>
+																	<UserAvatar
+																		name={
+																			item
+																				.employee
+																				.name
+																		}
+																		image={
+																			item
+																				.employee
+																				.profileImage
+																		}
+																		size='sm'
+																	/>
+																	<div className='min-w-0 flex-1 overflow-visible'>
+																		<div className='flex flex-col'>
+																			<div className='flex items-center gap-2 flex-wrap overflow-visible'>
+																				<span
+																					className={`text-sm font-semibold font-primary ${
+																						isOnLeave
+																							? "text-orange-900"
+																							: isWeeklyOff
+																								? "text-purple-900"
+																								: "text-gray-900"
+																					}`}>
+																					{
+																						item
+																							.employee
+																							.name
+																					}
+																				</span>
+																				{item
+																					.employee
+																					.role ===
+																					"hr" && (
+																					<span className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-indigo-100 text-indigo-700 whitespace-nowrap'>
+																						HR
+																					</span>
+																				)}
+																				{(() => {
+																					const employeeId =
+																						item
+																							.employee
+																							._id;
+																					const penalty =
+																						penalties.get(
+																							employeeId,
+																						);
+																					// Show penalty tag only on the date when penalty was actually created
+																					const selectedDateStr =
+																						format(
+																							selectedDate,
+																							"yyyy-MM-dd",
+																						);
+																					const isPenaltyDate =
+																						penalty &&
+																						(penalty.penaltyDate ===
+																							selectedDateStr ||
+																							penalty.lateArrivalDate ===
+																								selectedDateStr);
+																					const hasPenalty =
+																						isPenaltyDate &&
+																						penalty &&
+																						penalty.penaltyAmount >
+																							0;
+
+																					if (
+																						hasPenalty
+																					) {
+																						return (
+																							<button
+																								onClick={() =>
+																									setSelectedPenalty(
+																										penalty,
+																									)
+																								}
+																								className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-red-200 text-red-800 whitespace-nowrap flex items-center gap-1 cursor-pointer hover:bg-red-300 transition-colors'>
+																								<Clock className='w-3 h-3' />
+																								Penalty
+																							</button>
+																						);
+																					} else if (
+																						isOnLeave
+																					) {
+																						return (
+																							<span className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-orange-200 text-orange-800 whitespace-nowrap flex items-center gap-1'>
+																								<Calendar className='w-3 h-3' />
+																								On
+																								Leave
+																								Today
+																							</span>
+																						);
+																					}
+																					return null;
+																				})()}
+																				{isWeeklyOff &&
+																					!isOnLeave && (
+																						<span className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-purple-100 text-purple-700 whitespace-nowrap flex items-center gap-1'>
+																							<Clock className='w-3 h-3' />
+																							Weekly
+																							Off
+																						</span>
+																					)}
+																			</div>
+																			{item
+																				.employee
+																				.designation && (
+																				<span className='text-xs text-gray-600 font-secondary mt-0.5'>
+																					{
+																						item
+																							.employee
+																							.designation
+																					}
+																				</span>
+																			)}
+																			<div
+																				className={`mt-1 text-xs font-secondary truncate ${
 																					isOnLeave
-																						? "text-orange-900"
+																						? "text-orange-700"
 																						: isWeeklyOff
-																							? "text-purple-900"
-																							: "text-gray-900"
+																							? "text-purple-700"
+																							: "text-gray-500"
 																				}`}>
 																				{
 																					item
 																						.employee
-																						.name
+																						.email
 																				}
-																			</span>
-																			{item
-																				.employee
-																				.role ===
-																				"hr" && (
-																				<span className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-indigo-100 text-indigo-700 whitespace-nowrap'>
-																					HR
-																				</span>
-																			)}
-																			{(() => {
-																				const employeeId =
-																					item
-																						.employee
-																						._id;
-																				const penalty =
-																					penalties.get(
-																						employeeId,
-																					);
-																				// Show penalty tag only on the date when penalty was actually created
-																				const selectedDateStr =
-																					format(
-																						selectedDate,
-																						"yyyy-MM-dd",
-																					);
-																				const isPenaltyDate =
-																					penalty &&
-																					(penalty.penaltyDate ===
-																						selectedDateStr ||
-																						penalty.lateArrivalDate ===
-																							selectedDateStr);
-																				const hasPenalty =
-																					isPenaltyDate &&
-																					penalty &&
-																					penalty.penaltyAmount >
-																						0;
-
-																				if (
-																					hasPenalty
-																				) {
-																					return (
-																						<button
-																							onClick={() =>
-																								setSelectedPenalty(
-																									penalty,
-																								)
-																							}
-																							className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-red-200 text-red-800 whitespace-nowrap flex items-center gap-1 cursor-pointer hover:bg-red-300 transition-colors'>
-																							<Clock className='w-3 h-3' />
-																							Penalty
-																						</button>
-																					);
-																				} else if (
-																					isOnLeave
-																				) {
-																					return (
-																						<span className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-orange-200 text-orange-800 whitespace-nowrap flex items-center gap-1'>
-																							<Calendar className='w-3 h-3' />
-																							On
-																							Leave
-																							Today
-																						</span>
-																					);
-																				}
-																				return null;
-																			})()}
-																			{isWeeklyOff &&
-																				!isOnLeave && (
-																					<span className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-purple-100 text-purple-700 whitespace-nowrap flex items-center gap-1'>
-																						<Clock className='w-3 h-3' />
-																						Weekly
-																						Off
-																					</span>
-																				)}
-																		</div>
-																		{item
-																			.employee
-																			.designation && (
-																			<span className='text-xs text-gray-600 font-secondary mt-0.5'>
-																				{
-																					item
-																						.employee
-																						.designation
-																				}
-																			</span>
-																		)}
-																		<div
-																			className={`mt-1 text-xs font-secondary truncate ${
-																				isOnLeave
-																					? "text-orange-700"
-																					: isWeeklyOff
-																						? "text-purple-700"
-																						: "text-gray-500"
-																			}`}>
-																			{
-																				item
-																					.employee
-																					.email
-																			}
+																			</div>
 																		</div>
 																	</div>
 																</div>
-															</div>
-														</td>
-														<td className='px-4 py-2 whitespace-nowrap'>
-															{hasClockedIn ? (
-																<div className='flex items-center gap-1.5 text-sm text-gray-900 font-secondary'>
-																	<Clock className='w-3.5 h-3.5 text-green-600 flex-shrink-0' />
-																	<span className='font-medium'>
-																		{formatTime(
+															</td>
+															<td className='px-4 py-2 whitespace-nowrap'>
+																{hasClockedIn ? (
+																	<div className='flex items-center gap-1.5 text-sm text-gray-900 font-secondary'>
+																		<Clock className='w-3.5 h-3.5 text-green-600 flex-shrink-0' />
+																		<span className='font-medium'>
+																			{formatTime(
+																				att!
+																					.clockIn,
+																			)}
+																		</span>
+																		{isLateClockIn(
 																			att!
 																				.clockIn,
+																			item
+																				.employee
+																				.clockInTime,
+																		) &&
+																			(() => {
+																				const timeLimit =
+																					item
+																						.employee
+																						.clockInTime &&
+																					item
+																						.employee
+																						.clockInTime !==
+																						"N/R"
+																						? item
+																								.employee
+																								.clockInTime
+																						: defaultTimeLimit ||
+																							"";
+																				return (
+																					<div className='relative group'>
+																						<span className='px-1.5 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-orange-100 text-orange-700 whitespace-nowrap flex items-center gap-1 cursor-help'>
+																							<AlertCircle className='w-3 h-3' />
+																							Late
+																						</span>
+																						{timeLimit && (
+																							<div className='absolute left-0 top-full mt-1 px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10'>
+																								Time
+																								limit:{" "}
+																								{formatTimeString12Hour(
+																									timeLimit,
+																								)}
+																							</div>
+																						)}
+																					</div>
+																				);
+																			})()}
+																	</div>
+																) : (
+																	<span className='text-xs text-gray-400 font-secondary italic'>
+																		Not
+																		clocked
+																		in
+																	</span>
+																)}
+															</td>
+															<td className='px-4 py-2 whitespace-nowrap'>
+																{hasClockedOut ? (
+																	<div className='flex items-center gap-1.5 text-sm text-gray-900 font-secondary'>
+																		<Clock className='w-3.5 h-3.5 text-red-600 flex-shrink-0' />
+																		<span className='font-medium'>
+																			{formatTime(
+																				att!
+																					.clockOut!,
+																			)}
+																		</span>
+																	</div>
+																) : hasClockedIn ? (
+																	<span className='text-xs text-orange-600 font-secondary font-medium'>
+																		Still
+																		working
+																	</span>
+																) : (
+																	<span className='text-xs text-gray-400 font-secondary italic'>
+																		-
+																	</span>
+																)}
+															</td>
+															<td className='px-4 py-2 whitespace-nowrap'>
+																{att?.hoursWorked ? (
+																	<span className='text-sm font-semibold text-gray-900 font-secondary'>
+																		{formatHoursToHHMMSS(
+																			att.hoursWorked,
 																		)}
 																	</span>
-																	{isLateClockIn(
-																		att!
-																			.clockIn,
-																		item
-																			.employee
-																			.clockInTime,
-																	) &&
-																		(() => {
-																			const timeLimit =
-																				item
-																					.employee
-																					.clockInTime &&
-																				item
-																					.employee
-																					.clockInTime !==
-																					"N/R"
-																					? item
-																							.employee
-																							.clockInTime
-																					: defaultTimeLimit ||
-																						"";
-																			return (
-																				<div className='relative group'>
-																					<span className='px-1.5 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-orange-100 text-orange-700 whitespace-nowrap flex items-center gap-1 cursor-help'>
-																						<AlertCircle className='w-3 h-3' />
-																						Late
-																					</span>
-																					{timeLimit && (
-																						<div className='absolute left-0 top-full mt-1 px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10'>
-																							Time
-																							limit:{" "}
-																							{formatTimeString12Hour(
-																								timeLimit,
-																							)}
-																						</div>
-																					)}
-																				</div>
-																			);
-																		})()}
-																</div>
-															) : (
-																<span className='text-xs text-gray-400 font-secondary italic'>
-																	Not clocked
-																	in
-																</span>
-															)}
-														</td>
-														<td className='px-4 py-2 whitespace-nowrap'>
-															{hasClockedOut ? (
-																<div className='flex items-center gap-1.5 text-sm text-gray-900 font-secondary'>
-																	<Clock className='w-3.5 h-3.5 text-red-600 flex-shrink-0' />
-																	<span className='font-medium'>
-																		{formatTime(
-																			att!
-																				.clockOut!,
-																		)}
+																) : (
+																	<span className='text-xs text-gray-400 font-secondary'>
+																		-
 																	</span>
-																</div>
-															) : hasClockedIn ? (
-																<span className='text-xs text-orange-600 font-secondary font-medium'>
-																	Still
-																	working
-																</span>
-															) : (
-																<span className='text-xs text-gray-400 font-secondary italic'>
-																	-
-																</span>
-															)}
-														</td>
-														<td className='px-4 py-2 whitespace-nowrap'>
-															{att?.hoursWorked ? (
-																<span className='text-sm font-semibold text-gray-900 font-secondary'>
-																	{formatHoursToHHMMSS(
-																		att.hoursWorked,
-																	)}
-																</span>
-															) : (
-																<span className='text-xs text-gray-400 font-secondary'>
-																	-
-																</span>
-															)}
-														</td>
-														<td className='px-4 py-2 whitespace-nowrap'>
-															{isOnLeave ? (
-																<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-orange-100 text-orange-800'>
-																	On Leave
-																</span>
-															) : isWeeklyOff ? (
-																<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-purple-100 text-purple-800'>
-																	Weekly Off
-																</span>
-															) : hasClockedOut ? (
-																<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-green-100 text-green-800'>
-																	Completed
-																</span>
-															) : hasClockedIn ? (
-																<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-blue-100 text-blue-800'>
-																	Working
-																</span>
-															) : (
-																<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-red-100 text-red-800'>
-																	Absent
-																</span>
-															)}
-														</td>
-													</motion.tr>
-												);
-											},
-										)}
+																)}
+															</td>
+															<td className='px-4 py-2 whitespace-nowrap'>
+																{isOnLeave ? (
+																	<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-orange-100 text-orange-800'>
+																		On Leave
+																	</span>
+																) : isWeeklyOff ? (
+																	<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-purple-100 text-purple-800'>
+																		Weekly
+																		Off
+																	</span>
+																) : hasClockedOut ? (
+																	<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-green-100 text-green-800'>
+																		Completed
+																	</span>
+																) : hasClockedIn ? (
+																	<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-blue-100 text-blue-800'>
+																		Working
+																	</span>
+																) : (
+																	<span className='px-2 py-0.5 text-xs font-semibold rounded-full font-secondary bg-red-100 text-red-800'>
+																		Absent
+																	</span>
+																)}
+															</td>
+														</motion.tr>
+													);
+												},
+											)}
 									</tbody>
 								</table>
 							</div>

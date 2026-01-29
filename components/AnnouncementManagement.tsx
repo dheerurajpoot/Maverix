@@ -295,20 +295,9 @@ export default function AnnouncementManagement() {
 		setError("");
 	};
 
-	// const getTotalViews = (announcement: Announcement) => {
-	//   if (!announcement.views || announcement.views.length === 0) return 0;
-	//   return announcement.views.reduce((sum, view) => sum + (view.viewCount || 0), 0);
-	// };
-
-	// const getUniqueViewers = (announcement: Announcement) => {
-	//   if (!announcement.views) return 0;
-	//   return announcement.views.length;
-	// };
-
 	const canEditOrDelete = (announcement: Announcement) => {
 		const currentUserId = (session?.user as any)?.id;
 		const userRole = (session?.user as any)?.role;
-		// Admin can edit/delete any, others can only edit/delete their own
 		return (
 			userRole === "admin" || announcement.createdBy._id === currentUserId
 		);

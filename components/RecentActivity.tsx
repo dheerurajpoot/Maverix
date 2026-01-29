@@ -31,14 +31,14 @@ export default function RecentActivity() {
 	useEffect(() => {
 		fetchActivities(true);
 
-		// Auto-refresh activities (light refresh) - keep this modest
-		const interval = setInterval(() => {
-			fetchActivities(false);
-		}, 300000); // 5 minutes
+		// // Auto-refresh activities (light refresh) - keep this modest
+		// const interval = setInterval(() => {
+		// 	fetchActivities(false);
+		// }, 300000); // 5 minutes
 
-		return () => {
-			clearInterval(interval);
-		};
+		// return () => {
+		// 	clearInterval(interval);
+		// };
 	}, []);
 
 	const fetchActivities = async (showSpinner: boolean) => {

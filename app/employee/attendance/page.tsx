@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import AttendanceManagement from "@/components/AttendanceManagement";
+import LoadingDots from "@/components/LoadingDots";
 
 export default function EmployeeAttendancePage() {
 	const [attendance, setAttendance] = useState<any[]>([]);
@@ -32,7 +33,17 @@ export default function EmployeeAttendancePage() {
 						View your attendance history
 					</p>
 				</div>
-				<AttendanceManagement initialAttendance={attendance} />
+				<Suspense
+					fallback={
+						<div className='flex flex-col items-center justify-center py-12'>
+							<LoadingDots size='lg' className='mb-3' />
+							<p className='text-sm text-gray-500 font-secondary'>
+								Loading attendance...
+							</p>
+						</div>
+					}>
+					<AttendanceManagement initialAttendance={attendance} />
+				</Suspense>
 			</div>
 		</DashboardLayout>
 	);

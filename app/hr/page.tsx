@@ -16,7 +16,6 @@ import { motion } from "framer-motion";
 import { useEffect, useState, useCallback } from "react";
 import UserAvatar from "@/components/UserAvatar";
 import LoadingDots from "@/components/LoadingDots";
-import dynamic from "next/dynamic";
 import AnnouncementManagement from "@/components/AnnouncementManagement";
 import NotClockedInModal from "@/components/NotClockedInModal";
 import EmployeeSearch from "@/components/EmployeeSearch";
@@ -62,49 +61,23 @@ export default function HRDashboard() {
 		weeklyOffToday: 0,
 	});
 	const [loading, setLoading] = useState(true);
-	const [profileImage, setProfileImage] = useState<string | null>(null);
 	const [showNotClockedInModal, setShowNotClockedInModal] = useState(false);
 	const [showPayslipModal, setShowPayslipModal] = useState(false);
 	const [recentTeams, setRecentTeams] = useState<RecentTeam[]>([]);
 	const [teamsLoading, setTeamsLoading] = useState(true);
 
-	const fetchProfileImage = useCallback(async () => {
-		try {
-			// First check if profileImage is in session
-			const sessionImage =
-				(session?.user as any)?.image ||
-				(session?.user as any)?.profileImage;
-			if (sessionImage) {
-				setProfileImage(sessionImage);
-				return;
-			}
-
-			// If not in session, fetch it from API
-			const res = await fetch("/api/profile/image");
-			const data = await res.json();
-			if (res.ok && data.profileImage) {
-				setProfileImage(data.profileImage);
-			}
-		} catch (err) {
-			console.error("Error fetching profile image:", err);
-		}
-	}, [session]);
-
 	useEffect(() => {
 		fetchStats(true);
 		fetchRecentTeams(true);
-		if (session) {
-			fetchProfileImage();
-		}
 
-		// Auto-refresh teams (light refresh) - keep this modest to reduce load
-		const interval = setInterval(() => {
-			fetchRecentTeams(false);
-		}, 300000);
+		// // Auto-refresh teams (light refresh) - keep this modest to reduce load
+		// const interval = setInterval(() => {
+		// 	fetchRecentTeams(false);
+		// }, 300000);
 
-		return () => {
-			clearInterval(interval);
-		};
+		// return () => {
+		// 	clearInterval(interval);
+		// };
 	}, [session]);
 
 	const fetchStats = async (showSpinner: boolean) => {
@@ -220,10 +193,7 @@ export default function HRDashboard() {
 						<div className='flex items-center gap-2'>
 							<UserAvatar
 								name={session?.user?.name || ""}
-								image={
-									profileImage ||
-									(session?.user as any)?.profileImage
-								}
+								image={(session?.user as any)?.profileImage}
 								size='lg'
 							/>
 							<div>

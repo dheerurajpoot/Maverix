@@ -82,30 +82,30 @@ export default function AdminLeaveAllotmentPage() {
 		fetchAllottedLeaves();
 	}, []);
 
-	// Listen for leave allotment updates from other pages
-	useEffect(() => {
-		const handleLeaveAllotmentUpdate = () => {
-			fetchAllottedLeaves();
-		};
+	// // Listen for leave allotment updates from other pages
+	// useEffect(() => {
+	// 	const handleLeaveAllotmentUpdate = () => {
+	// 		fetchAllottedLeaves();
+	// 	};
 
-		window.addEventListener(
-			"leaveAllotmentUpdated",
-			handleLeaveAllotmentUpdate,
-		);
+	// 	window.addEventListener(
+	// 		"leaveAllotmentUpdated",
+	// 		handleLeaveAllotmentUpdate,
+	// 	);
 
-		// Also refresh periodically to catch updates from other tabs/windows
-		const interval = setInterval(() => {
-			fetchAllottedLeaves();
-		}, 300000); // Refresh every 5 minutes
+	// 	// Also refresh periodically to catch updates from other tabs/windows
+	// 	const interval = setInterval(() => {
+	// 		fetchAllottedLeaves();
+	// 	}, 300000); // Refresh every 5 minutes
 
-		return () => {
-			window.removeEventListener(
-				"leaveAllotmentUpdated",
-				handleLeaveAllotmentUpdate,
-			);
-			clearInterval(interval);
-		};
-	}, []);
+	// 	return () => {
+	// 		window.removeEventListener(
+	// 			"leaveAllotmentUpdated",
+	// 			handleLeaveAllotmentUpdate,
+	// 		);
+	// 		clearInterval(interval);
+	// 	};
+	// }, []);
 
 	// Close dropdowns when clicking outside
 	useEffect(() => {

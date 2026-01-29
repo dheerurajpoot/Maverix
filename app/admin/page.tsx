@@ -56,70 +56,15 @@ export default function AdminDashboard() {
 	const [loading, setLoading] = useState(true);
 	const [recentTeams, setRecentTeams] = useState<RecentTeam[]>([]);
 	const [teamsLoading, setTeamsLoading] = useState(true);
-	const [profileImage, setProfileImage] = useState<string | null>(null);
 	const [showNotClockedInModal, setShowNotClockedInModal] = useState(false);
 	const [showPayslipModal, setShowPayslipModal] = useState(false);
 
-	// Verify admin role
-	// useEffect(() => {
-	// 	if (session) {
-	// 		const userRole = (session.user as any)?.role;
-	// 		if (userRole !== "admin") {
-	// 			if (userRole === "hr" || userRole === "employee") {
-	// 				router.push("/employee");
-	// 			} else {
-	// 				router.push("/");
-	// 			}
-	// 			return;
-	// 		}
-	// 	}
-	// }, [session]);
-
 	useEffect(() => {
-		const fetchProfileImage = async () => {
-			try {
-				// First check if profileImage is in session
-				const sessionImage =
-					(session?.user as any)?.image ||
-					(session?.user as any)?.profileImage;
-				if (sessionImage) {
-					setProfileImage(sessionImage);
-					return;
-				}
-
-				// If not in session, fetch it from API
-				const res = await fetch("/api/profile/image");
-				const data = await res.json();
-				if (res.ok && data.profileImage) {
-					setProfileImage(data.profileImage);
-				}
-			} catch (err) {
-				console.error("Error fetching profile image:", err);
-			}
-		};
-
-		// Only fetch data if user is authenticated and is admin
-		if (
-			status === "authenticated" &&
-			session &&
-			(session.user as any)?.role === "admin"
-		) {
-			fetchStats(true);
-			fetchRecentTeams(true);
-			fetchProfileImage();
-
-			// Auto-refresh teams (light refresh) - keep this modest to reduce load
-			const interval = setInterval(() => {
-				fetchRecentTeams(false);
-			}, 300000); // 5 minutes
-
-			return () => {
-				clearInterval(interval);
-			};
-		}
+		fetchStats();
+		fetchRecentTeams(true);
 	}, [session]);
 
-	const fetchStats = async (showSpinner: boolean) => {
+	const fetchStats = async () => {
 		try {
 			setLoading(true);
 			const res = await fetch("/api/admin/stats");
@@ -156,7 +101,7 @@ export default function AdminDashboard() {
 	};
 
 	// Calculate percentages for each stat
-	const totalEmployees = stats.totalEmployees || 1; // Avoid division by zero
+	const totalEmployees = stats.totalEmployees || 1;
 
 	const statCards = [
 		{
@@ -223,23 +168,6 @@ export default function AdminDashboard() {
 		},
 	];
 
-	// Show loading state while session is loading or role doesn't match
-	// if (
-	// 	status === "loading" ||
-	// 	(session && (session.user as any)?.role !== "admin")
-	// ) {
-	// 	return (
-	// 		<div className='min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center'>
-	// 			<div className='text-center'>
-	// 				<LoadingDots size='lg' />
-	// 				<p className='mt-4 text-gray-600 font-secondary'>
-	// 					Loading...
-	// 				</p>
-	// 			</div>
-	// 		</div>
-	// 	);
-	// }
-
 	return (
 		<DashboardLayout role='admin'>
 			<div className='min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'>
@@ -249,10 +177,7 @@ export default function AdminDashboard() {
 						<div className='flex items-center gap-2'>
 							<UserAvatar
 								name={session?.user?.name || ""}
-								image={
-									profileImage ||
-									(session?.user as any)?.profileImage
-								}
+								image={(session?.user as any)?.profileImage}
 								size='lg'
 							/>
 							<div>

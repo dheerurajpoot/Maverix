@@ -113,8 +113,6 @@ export default function EmployeeLeaveView({
 	const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
 	const toast = useToast();
 
-	console.log("Initial Leave: ", initialLeaves);
-
 	const fetchAllottedLeaveTypes = async () => {
 		try {
 			setLoading(true);

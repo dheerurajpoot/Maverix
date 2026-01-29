@@ -44,13 +44,13 @@ export default function PendingEmployees() {
 
 	useEffect(() => {
 		fetchPendingEmployees();
-		const interval = setInterval(() => {
-			fetchPendingEmployees();
-		}, 300000); // 5 minutes
+		// const interval = setInterval(() => {
+		// 	fetchPendingEmployees();
+		// }, 300000); // 5 minutes
 
-		return () => {
-			clearInterval(interval);
-		};
+		// return () => {
+		// 	clearInterval(interval);
+		// };
 	}, []);
 
 	const handleApprove = async (employeeId: string) => {

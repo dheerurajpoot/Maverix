@@ -1,6 +1,5 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import LoadingDots from "@/components/LoadingDots";

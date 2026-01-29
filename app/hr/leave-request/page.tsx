@@ -1,13 +1,11 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import EmployeeLeaveView from "@/components/EmployeeLeaveView";
 import LoadingDots from "@/components/LoadingDots";
 
 export default function HRLeaveRequestPage() {
-	const { data: session } = useSession();
 	const [leaves, setLeaves] = useState<any[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -17,7 +15,6 @@ export default function HRLeaveRequestPage() {
 
 	const fetchLeaves = async () => {
 		try {
-			// API already filters by userId for HR role, so we can use leaves directly
 			const res = await fetch(`/api/leave?t=${Date.now()}`, {
 				cache: "no-store",
 				headers: { "Cache-Control": "no-cache" },

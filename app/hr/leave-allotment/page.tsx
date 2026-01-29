@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Plus, X, Users, Calendar } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useToast } from "@/contexts/ToastContext";
 import AllottedLeavesList from "@/components/AllottedLeavesList";
 import LoadingDots from "@/components/LoadingDots";
@@ -93,17 +93,11 @@ export default function HRLeaveAllotmentPage() {
 			handleLeaveAllotmentUpdate,
 		);
 
-		// Also refresh periodically to catch updates from other tabs/windows
-		const interval = setInterval(() => {
-			fetchAllottedLeaves();
-		}, 300000); // Refresh every 5 minutes
-
 		return () => {
 			window.removeEventListener(
 				"leaveAllotmentUpdated",
 				handleLeaveAllotmentUpdate,
 			);
-			clearInterval(interval);
 		};
 	}, []);
 

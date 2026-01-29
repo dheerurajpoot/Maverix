@@ -2,11 +2,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import connectDB from "@/lib/mongodb";
-import Attendance from "@/models/Attendance";
+import dynamic from "next/dynamic";
 import AttendanceManagement from "@/components/AttendanceManagement";
 import LoadingDots from "@/components/LoadingDots";
+
+const DashboardLayout = dynamic(
+	() => import("@/components/DashboardLayout"),
+	{ ssr: false },
+);
 
 export default async function AdminAttendancePage() {
 	const session = await getServerSession(authOptions);
@@ -14,13 +17,6 @@ export default async function AdminAttendancePage() {
 	if (!session || (session.user as any).role !== "admin") {
 		redirect("/login");
 	}
-
-	await connectDB();
-	const attendance = await Attendance.find()
-		.populate("userId", "name email profileImage")
-		.sort({ date: -1 })
-		.limit(100)
-		.lean();
 
 	return (
 		<DashboardLayout role='admin'>
@@ -36,17 +32,15 @@ export default async function AdminAttendancePage() {
 
 				<Suspense
 					fallback={
-						<div className='bg-white/95 backdrop-blur-xl rounded-md shadow-lg border border-white/50 p-12 flex flex-col items-center justify-center'>
+						<div className='flex flex-col items-center justify-center py-12 rounded-lg border border-gray-100 bg-white'>
 							<LoadingDots size='lg' className='mb-3' />
 							<p className='text-sm text-gray-500 font-secondary'>
-								Loading attendance data...
+								Loading attendance...
 							</p>
 						</div>
 					}>
 					<AttendanceManagement
-						initialAttendance={JSON.parse(
-							JSON.stringify(attendance),
-						)}
+						initialAttendance={[]}
 						isAdminOrHR={true}
 					/>
 				</Suspense>

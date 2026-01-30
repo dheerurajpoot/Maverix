@@ -2,15 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-	X,
-	Search,
-	Download,
-	FileText,
-	Calendar,
-	User,
-	Loader2,
-} from "lucide-react";
+import { X, Search, Download, FileText, Calendar, Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import UserAvatar from "./UserAvatar";
 import jsPDF from "jspdf";
@@ -242,10 +234,10 @@ export default function PayslipGenerationModal({
 
 			// Load and add company logo
 			const logoPath = "/assets/paysliplogo.png";
-			const logoWidth = 40; // Logo width in mm
-			const logoX = (pageWidth - logoWidth) / 2; // Center horizontally
+			const logoWidth = 40;
+			const logoX = (pageWidth - logoWidth) / 2;
 			const logoY = margin;
-			let textStartY = margin + 10; // Default start position if logo fails
+			let textStartY = margin + 10;
 
 			// Load logo image and convert to base64
 			try {

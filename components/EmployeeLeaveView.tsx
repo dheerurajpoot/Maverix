@@ -4,9 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
 	Plus,
-	Calendar,
 	Clock,
-	User,
 	CheckCircle,
 	X,
 	Trash2,
@@ -485,7 +483,6 @@ export default function EmployeeLeaveView({
 
 	// Separate allotted leaves and leave requests, excluding penalty-related leaves
 	const allottedLeaves = leaves.filter((leave) => {
-		// Exclude penalty-related leaves
 		if (
 			leave.reason &&
 			/penalty|late.*clock.*in|exceeded.*max.*late/i.test(leave.reason)
@@ -495,7 +492,6 @@ export default function EmployeeLeaveView({
 		return leave.allottedBy;
 	});
 	const leaveRequests = leaves.filter((leave) => {
-		// Exclude penalty-related leaves
 		if (
 			leave.reason &&
 			/penalty|late.*clock.*in|exceeded.*max.*late/i.test(leave.reason)

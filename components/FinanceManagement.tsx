@@ -16,7 +16,6 @@ import {
 	FileText,
 	Wallet,
 	CreditCard,
-	Building2,
 	Edit,
 	Trash2,
 	IndianRupee,

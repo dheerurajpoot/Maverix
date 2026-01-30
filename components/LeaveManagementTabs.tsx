@@ -128,10 +128,7 @@ export default function LeaveManagementTabs({
 
 	const fetchLeaveTypes = useCallback(async () => {
 		try {
-			const res = await fetch(`/api/leave-types?t=${Date.now()}`, {
-				cache: "no-store",
-				headers: { "Cache-Control": "no-cache" },
-			});
+			const res = await fetch('/api/leave-types');
 			const data = await res.json();
 			setLeaveTypes(data.leaveTypes || []);
 		} catch (err) {

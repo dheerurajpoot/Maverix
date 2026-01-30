@@ -13,7 +13,7 @@ import {
 	FileText,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import UserAvatar from "@/components/UserAvatar";
 import LoadingDots from "@/components/LoadingDots";
 import AnnouncementManagement from "@/components/AnnouncementManagement";
@@ -69,15 +69,6 @@ export default function HRDashboard() {
 	useEffect(() => {
 		fetchStats(true);
 		fetchRecentTeams(true);
-
-		// // Auto-refresh teams (light refresh) - keep this modest to reduce load
-		// const interval = setInterval(() => {
-		// 	fetchRecentTeams(false);
-		// }, 300000);
-
-		// return () => {
-		// 	clearInterval(interval);
-		// };
 	}, [session]);
 
 	const fetchStats = async (showSpinner: boolean) => {

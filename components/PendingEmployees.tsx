@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { UserCheck, CheckCircle, X, Clock } from "lucide-react";
+import { UserCheck, CheckCircle, Clock } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import UserAvatar from "./UserAvatar";
@@ -44,13 +44,6 @@ export default function PendingEmployees() {
 
 	useEffect(() => {
 		fetchPendingEmployees();
-		// const interval = setInterval(() => {
-		// 	fetchPendingEmployees();
-		// }, 300000); // 5 minutes
-
-		// return () => {
-		// 	clearInterval(interval);
-		// };
 	}, []);
 
 	const handleApprove = async (employeeId: string) => {

@@ -390,21 +390,6 @@ export default function AttendanceManagement({
 		}
 	}, [isAdminOrHR]);
 
-	// Fetch default time limit
-	// useEffect(() => {
-	// 	fetchDefaultTimeLimit();
-	// }, [fetchDefaultTimeLimit]);
-
-	// // Fetch user clockInTime and weeklyOff for employee view
-	// useEffect(() => {
-	// 	fetchUserClockInTime();
-	// }, [fetchUserClockInTime]);
-
-	// // Fetch leaves for the month
-	// useEffect(() => {
-	// 	fetchLeavesForMonth();
-	// }, []);
-
 	// Fetch attendance when date changes
 	useEffect(() => {
 		if (isAdminOrHR) {
@@ -624,18 +609,6 @@ export default function AttendanceManagement({
 
 	// For admin/hr: Show daily view with all employees
 	if (isAdminOrHR) {
-		// If dailyAttendance is null (employees not loaded yet), show loading
-		// if (!dailyAttendance) {
-		// 	return (
-		// 		<div className='bg-white/95 backdrop-blur-xl rounded-md shadow-lg border border-white/50 p-12 flex flex-col items-center justify-center'>
-		// 			<LoadingDots size='lg' className='mb-3' />
-		// 			<p className='text-sm text-gray-500 font-secondary'>
-		// 				Loading attendance data...
-		// 			</p>
-		// 		</div>
-		// 	);
-		// }
-
 		const isToday = isSameDay(selectedDate, new Date());
 
 		return (

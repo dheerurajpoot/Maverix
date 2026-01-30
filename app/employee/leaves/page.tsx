@@ -13,10 +13,7 @@ export default function EmployeeLeavesPage() {
 
 	const fetchLeaves = async () => {
 		try {
-			const res = await fetch(`/api/leave?t=${Date.now()}`, {
-				cache: "no-store",
-				headers: { "Cache-Control": "no-cache" },
-			});
+			const res = await fetch('/api/leave');
 			const data = await res.json();
 			setLeaves(data.leaves || []);
 		} catch (err) {

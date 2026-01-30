@@ -298,25 +298,9 @@ export default function Profile() {
 		return name[0].toUpperCase();
 	};
 
-	// if (loading) {
-	// 	return (
-	// 		<div className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-8 border border-white/50'>
-	// 			<div className='flex flex-col items-center justify-center py-8'>
-	// 				<LoadingDots size='lg' className='mb-3' />
-	// 				<p className='text-sm text-gray-500 font-secondary'>
-	// 					Loading profile...
-	// 				</p>
-	// 			</div>
-	// 		</div>
-	// 	);
-	// }
-
 	return (
 		<div className='space-y-4'>
 			<form onSubmit={handleSubmit} className='space-y-4'>
-				{/* Profile Picture Section */}
-
-				{/* Personal Information Section */}
 				<motion.div
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}

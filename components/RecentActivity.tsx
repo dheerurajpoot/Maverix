@@ -44,15 +44,7 @@ export default function RecentActivity() {
 	const fetchActivities = async (showSpinner: boolean) => {
 		try {
 			if (showSpinner) setLoading(true);
-			const res = await fetch(
-				`/api/admin/recent-activities?t=${Date.now()}`,
-				{
-					cache: "no-store",
-					headers: {
-						"Cache-Control": "no-cache",
-					},
-				},
-			);
+			const res = await fetch('/api/admin/recent-activities');
 			const data = await res.json();
 			if (res.ok) {
 				setActivities(data.activities || []);

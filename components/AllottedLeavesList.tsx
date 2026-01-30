@@ -1,22 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import {
-	Search,
-	Filter,
-	Calendar,
-	User,
-	Clock,
-	Edit,
-	Trash2,
-	X,
-} from "lucide-react";
+import { Search, Filter, Edit, X } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import UserAvatar from "./UserAvatar";
-import LoadingDots from "./LoadingDots";
 import { formatHoursMinutes } from "@/lib/timeUtils";
 
 interface Leave {
@@ -99,7 +89,6 @@ export default function AllottedLeavesList({
 
 		Object.keys(groupedLeaves).forEach((userId) => {
 			const employeeLeaves = groupedLeaves[userId];
-			const firstLeave = employeeLeaves[0];
 			const employee = employees.find((e) => e._id === userId);
 
 			const matchesSearch =

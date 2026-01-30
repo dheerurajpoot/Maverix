@@ -1,95 +1,95 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
+const ROLE_DASHBOARD: Record<string, string> = {
+  admin: '/admin',
+  hr: '/hr',
+  employee: '/employee',
+};
+
+const PUBLIC_PATHS = ['/', '/login'];
+
+function isPublic(path: string) {
+  return PUBLIC_PATHS.includes(path);
+}
+
+function isAuthPage(path: string) {
+  return path === '/verify' || path === '/login';
+}
+
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const isAuth = !!token;
     const path = req.nextUrl.pathname;
-    const isAuthPage = path.startsWith('/verify') || path.startsWith('/login');
 
-    // Allow unauthenticated access to root (landing page) and login page
-    if (path === '/' || path === '/login') {
-      return null;
-    }
+    // Public routes: allow without auth
+    if (isPublic(path)) return NextResponse.next();
 
-    if (isAuthPage) {
+    // Login/verify: redirect authenticated users to dashboard
+    if (isAuthPage(path)) {
       if (isAuth) {
         const role = (token as any)?.role;
-        
-        // Redirect authenticated users away from login/verify pages to their dashboard
-        if (role === 'admin') {
-          return NextResponse.redirect(new URL('/admin', req.url));
-        } else if (role === 'hr') {
-          return NextResponse.redirect(new URL('/hr', req.url));
-        } else if (role === 'employee') {
-          return NextResponse.redirect(new URL('/employee', req.url));
-        }
+        const dashboard = ROLE_DASHBOARD[role] ?? '/';
+        return NextResponse.redirect(new URL(dashboard, req.url));
       }
-      return null;
+      return NextResponse.next();
     }
 
+    // Protected: require auth
     if (!isAuth) {
-      // Redirect unauthenticated users trying to access protected routes to landing page
       return NextResponse.redirect(new URL('/', req.url));
     }
 
-    const role = (token as any)?.role;
+    const role = (token as any)?.role ?? 'employee';
     const approved = (token as any)?.approved;
 
-    // Handle role-based access control
+    // Admin: only admin
     if (path.startsWith('/admin')) {
       if (role !== 'admin') {
-        return NextResponse.redirect(new URL(`/${role || 'employee'}`, req.url));
+        return NextResponse.redirect(new URL(ROLE_DASHBOARD[role] ?? '/employee', req.url));
       }
-      return null;
+      return NextResponse.next();
     }
 
+    // HR: admin or hr
     if (path.startsWith('/hr')) {
       if (role !== 'hr' && role !== 'admin') {
-        return NextResponse.redirect(new URL(`/${role || 'employee'}`, req.url));
+        return NextResponse.redirect(new URL(ROLE_DASHBOARD[role] ?? '/employee', req.url));
       }
-      return null;
+      return NextResponse.next();
     }
 
+    // Employee section
     if (path.startsWith('/employee')) {
-      // Only employees, HR, and admins can access employee routes
       if (role !== 'employee' && role !== 'hr' && role !== 'admin') {
-        return NextResponse.redirect(new URL(`/${role || '/'}`, req.url));
+        return NextResponse.redirect(new URL(role ? `/${role}` : '/', req.url));
       }
-
-      // Handle employee-specific approval logic
       if (role === 'employee') {
-        // If accessing waiting page
         if (path === '/employee/waiting') {
-          // Only allow if explicitly not approved (false)
-          // If approved is true, undefined, or null, redirect to dashboard
-          if (approved === true || approved === undefined || approved === null) {
-            return NextResponse.redirect(new URL('/employee', req.url));
-          }
-          // If approved is false, allow access to waiting page
-          return null;
-        }
-
-        // If accessing employee dashboard or other employee routes (not waiting)
-        // Only redirect to waiting page if explicitly not approved (false)
-        if (approved === false) {
+          if (approved !== false) return NextResponse.redirect(new URL('/employee', req.url));
+        } else if (approved === false) {
           return NextResponse.redirect(new URL('/employee/waiting', req.url));
         }
       }
-
-      // Allow access for employees (approved), HR, and admins
-      return null;
+      return NextResponse.next();
     }
+
+    return NextResponse.next();
   },
   {
-    callbacks: {
-      authorized: () => true,
-    },
+    callbacks: { authorized: () => true },
   }
 );
 
+// Run only on app routes; exclude static files, _next, api to reduce edge invocations
 export const config = {
-  matcher: ['/admin/:path*', '/hr/:path*', '/employee/:path*', '/verify', '/login', '/'],
+  matcher: [
+    '/',
+    '/login',
+    '/verify',
+    '/admin/:path*',
+    '/hr/:path*',
+    '/employee/:path*',
+  ],
 };
-

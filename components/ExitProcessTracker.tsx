@@ -183,8 +183,6 @@ export default function ExitProcessTracker({
 				return "pending";
 			case "exitClosure":
 				if (resignation.exitClosed) return "completed";
-				// Exit closure is only in-progress when all other steps are completed
-				// For now, if resignation is approved, it's pending until other steps complete
 				return "pending";
 			default:
 				return "pending";

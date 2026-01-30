@@ -186,14 +186,9 @@ export default function EmployeeManagement({
 				requestBody.clockInTime = formData.clockInTime.trim();
 			}
 
-			const cacheBustUrl = `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
-			const res = await fetch(cacheBustUrl, {
+			const res = await fetch(url, {
 				method,
-				headers: {
-					"Content-Type": "application/json",
-					"Cache-Control": "no-cache",
-				},
-				cache: "no-store",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(requestBody),
 			});
 
@@ -255,10 +250,8 @@ export default function EmployeeManagement({
 		setDeleting(true);
 
 		try {
-			const res = await fetch(`/api/users/${id}?t=${Date.now()}`, {
+			const res = await fetch(`/api/users/${id}`, {
 				method: "DELETE",
-				cache: "no-store",
-				headers: { "Cache-Control": "no-cache" },
 			});
 			const data = await res.json();
 
@@ -291,12 +284,7 @@ export default function EmployeeManagement({
 	// Fetch fresh employee data from server
 	const fetchEmployees = async () => {
 		try {
-			const res = await fetch(`/api/users?t=${Date.now()}`, {
-				cache: "no-store",
-				headers: {
-					"Cache-Control": "no-cache",
-				},
-			});
+			const res = await fetch('/api/users');
 			const data = await res.json();
 			if (res.ok && data.users && Array.isArray(data.users)) {
 				// Filter out admin users (API already filters, but double-check for safety)
@@ -332,13 +320,7 @@ export default function EmployeeManagement({
 	// Fetch employees on leave today
 	const fetchEmployeesOnLeave = async () => {
 		try {
-			// Add cache-busting to ensure fresh data
-			const res = await fetch("/api/leave/on-leave-today", {
-				cache: "no-store",
-				headers: {
-					"Cache-Control": "no-cache",
-				},
-			});
+			const res = await fetch("/api/leave/on-leave-today");
 			const data = await res.json();
 			if (res.ok && data.userIdsOnLeave) {
 				setEmployeesOnLeaveToday(data.userIdsOnLeave);

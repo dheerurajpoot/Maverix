@@ -10,7 +10,6 @@ import {
 	endOfWeek,
 	startOfMonth,
 	endOfMonth,
-	isSameDay,
 } from "date-fns";
 
 interface FilterOption {
@@ -201,8 +200,7 @@ export default function AdvancedFilterBar({
 				toFilter.onChange(to);
 			}
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []); // Only run on mount
+	}, []); 
 
 	// Find which preset matches current date range
 	const getCurrentPreset = useMemo(() => {

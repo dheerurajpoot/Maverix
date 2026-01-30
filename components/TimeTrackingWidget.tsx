@@ -55,7 +55,6 @@ export default function TimeTrackingWidget() {
 	const [calendarEvents, setCalendarEvents] = useState<{
 		[key: string]: Array<{ summary: string; description: string }>;
 	}>({});
-	const [eventsLoading, setEventsLoading] = useState(false);
 	const [showEventPopup, setShowEventPopup] = useState(false);
 	const [selectedEventDate, setSelectedEventDate] = useState<Date | null>(
 		null,
@@ -284,15 +283,15 @@ export default function TimeTrackingWidget() {
 			setCurrentTime(new Date());
 		}, 1000);
 
-		// Check clock status every 30 seconds
+		// Check clock status every minute
 		const statusInterval = setInterval(() => {
 			checkClockStatus();
-		}, 60000);
+		}, 60000); // 1 minute
 
 		// Check for automatic clock-out every minute
 		const autoClockOutInterval = setInterval(() => {
 			checkAutoClockOut();
-		}, 60000); // Check every minute
+		}, 60000); // 1 minute
 
 		return () => {
 			clearInterval(timeInterval);
@@ -417,7 +416,6 @@ export default function TimeTrackingWidget() {
 	// Fetch calendar events for the current month
 	const fetchCalendarEvents = useCallback(async () => {
 		try {
-			setEventsLoading(true);
 			const monthStart = startOfMonth(currentMonth);
 			const monthEnd = endOfMonth(currentMonth);
 
@@ -456,8 +454,6 @@ export default function TimeTrackingWidget() {
 			}
 		} catch (err) {
 			console.error("Error fetching calendar events:", err);
-		} finally {
-			setEventsLoading(false);
 		}
 	}, [currentMonth]);
 

@@ -129,11 +129,10 @@ export default function LeaveManagement({
     setError('');
 
     try {
-      const res = await fetch(`/api/leave?t=${Date.now()}`, {
+      const res = await fetch('/api/leave', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
-        cache: 'no-store',
       });
 
       const data = await res.json();
@@ -166,11 +165,10 @@ export default function LeaveManagement({
     );
 
     try {
-      const res = await fetch(`/api/leave/${id}?t=${Date.now()}`, {
+      const res = await fetch(`/api/leave/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'approved' }),
-        cache: 'no-store',
       });
 
       let data: { error?: string; leave?: Leave };
@@ -237,11 +235,10 @@ export default function LeaveManagement({
     );
 
     try {
-      const res = await fetch(`/api/leave/${id}?t=${Date.now()}`, {
+      const res = await fetch(`/api/leave/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'rejected', rejectionReason: reason }),
-        cache: 'no-store',
       });
 
       let data: { error?: string; leave?: Leave };

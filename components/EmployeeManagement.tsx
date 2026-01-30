@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Plus, Edit, Trash2, Calendar, Clock, Search, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
@@ -27,17 +27,18 @@ interface Employee {
 	createdAt?: string;
 }
 
+const EMPLOYEES_PAGE_SIZE = 15;
+
 interface EmployeeManagementProps {
-	initialEmployees: Employee[];
+	initialEmployees?: Employee[];
 	canChangeRole?: boolean;
 }
 
 export default function EmployeeManagement({
-	initialEmployees,
+	initialEmployees = [],
 	canChangeRole = true,
 }: EmployeeManagementProps) {
-	// Ensure weeklyOff is always an array for initial employees
-	const [employees, setEmployees] = useState(
+	const [employees, setEmployees] = useState<Employee[]>(
 		initialEmployees.map((emp) => ({
 			...emp,
 			weeklyOff: Array.isArray(emp.weeklyOff) ? emp.weeklyOff : [],
@@ -66,7 +67,10 @@ export default function EmployeeManagement({
 	});
 	const [deleting, setDeleting] = useState(false);
 	const [currentPage, setCurrentPage] = useState(1);
-	const itemsPerPage = 20;
+	const [totalCount, setTotalCount] = useState(0);
+	const [totalPages, setTotalPages] = useState(1);
+	const [designations, setDesignations] = useState<string[]>([]);
+	const [loadingList, setLoadingList] = useState(false);
 	const [employeesOnLeaveToday, setEmployeesOnLeaveToday] = useState<
 		string[]
 	>([]);
@@ -77,8 +81,10 @@ export default function EmployeeManagement({
 	const [noClockInRestrictions, setNoClockInRestrictions] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [designationFilter, setDesignationFilter] = useState<string>("");
+	const currentPageRef = useRef(1);
 	const { data: session } = useSession();
 	const toast = useToast();
+	currentPageRef.current = currentPage;
 
 	// Check if user is HR or Admin
 	const isHROrAdmin =
@@ -216,13 +222,10 @@ export default function EmployeeManagement({
 				);
 			}
 
-			// Refresh employee list to ensure consistency (including weeklyOff)
 			try {
-				await fetchEmployees();
+				await fetchEmployees(currentPage);
 			} catch (fetchErr) {
 				console.error("Error refreshing employee list:", fetchErr);
-				// If fetch fails, still show success but log the error
-				// The employee should still be updated in the database
 			}
 
 			if (editingEmployee) {
@@ -263,12 +266,11 @@ export default function EmployeeManagement({
 				return;
 			}
 
-			// Success - remove from UI and show success message
-			setEmployees(employees.filter((emp) => emp._id !== id));
 			toast.success("Employee deleted successfully");
-
-			// Refresh employee list to ensure consistency
-			fetchEmployees();
+			const remaining = employees.filter((emp) => emp._id !== id);
+			const goToPage = remaining.length === 0 && currentPage > 1 ? currentPage - 1 : currentPage;
+			setCurrentPage(goToPage);
+			await fetchEmployees(goToPage);
 			setDeleting(false);
 			setDeleteModal({ isOpen: false, employee: null });
 		} catch (err: any) {
@@ -281,39 +283,44 @@ export default function EmployeeManagement({
 		}
 	};
 
-	// Fetch fresh employee data from server
-	const fetchEmployees = async () => {
+	const fetchEmployees = async (
+		page: number,
+		overrides?: { search?: string; designation?: string }
+	) => {
+		setLoadingList(true);
 		try {
-			const res = await fetch('/api/users');
+			const search = overrides?.search ?? searchTerm;
+			const designation = overrides?.designation ?? designationFilter;
+			const params = new URLSearchParams();
+			params.set("page", String(page));
+			params.set("limit", String(EMPLOYEES_PAGE_SIZE));
+			if (search.trim()) params.set("search", search.trim());
+			if (designation) params.set("designation", designation);
+			const res = await fetch(`/api/users?${params.toString()}`);
 			const data = await res.json();
 			if (res.ok && data.users && Array.isArray(data.users)) {
-				// Filter out admin users (API already filters, but double-check for safety)
-				// Ensure weeklyOff is always an array and preserve all other fields
-				const filteredUsers = data.users
+				const normalized = data.users
 					.filter((u: Employee) => u.role !== "admin")
-					.map((u: Employee) => {
-						const weeklyOffArray = Array.isArray(u.weeklyOff)
-							? u.weeklyOff
-							: [];
-						return {
-							...u,
-							weeklyOff: weeklyOffArray,
-							clockInTime: u.clockInTime || undefined,
-							// Ensure all required fields are present
-							emailVerified: u.emailVerified ?? false,
-							approved: u.approved ?? false,
-						};
-					});
-				setEmployees(filteredUsers);
+					.map((u: Employee) => ({
+						...u,
+						weeklyOff: Array.isArray(u.weeklyOff) ? u.weeklyOff : [],
+						clockInTime: u.clockInTime || undefined,
+						emailVerified: u.emailVerified ?? false,
+						approved: u.approved ?? false,
+					}));
+				setEmployees(normalized);
+				setTotalCount(data.total ?? 0);
+				setTotalPages(data.totalPages ?? 1);
+				if (data.designations && Array.isArray(data.designations)) {
+					setDesignations(data.designations);
+				}
 			} else {
-				console.error(
-					"Failed to fetch employees:",
-					data.error || "Unknown error",
-				);
-				// Don't clear employees on error, keep existing list
+				console.error("Failed to fetch employees:", data.error || "Unknown error");
 			}
 		} catch (err) {
 			console.error("Error fetching employees:", err);
+		} finally {
+			setLoadingList(false);
 		}
 	};
 
@@ -431,21 +438,19 @@ export default function EmployeeManagement({
 	};
 
 	useEffect(() => {
-		fetchEmployees();
+		fetchEmployees(1);
 		fetchEmployeesOnLeave();
 		fetchDefaultTimeLimit();
 		fetchMaxLateDays();
 
-		// Refresh periodically (use events for instant updates)
 		const interval = setInterval(() => {
 			if (document.visibilityState === "visible") {
 				fetchEmployeesOnLeave();
 			}
 		}, 300000);
 
-		// Refresh when window comes into focus
 		const handleFocus = () => {
-			fetchEmployees();
+			fetchEmployees(currentPageRef.current);
 			fetchEmployeesOnLeave();
 		};
 		window.addEventListener("focus", handleFocus);
@@ -471,96 +476,29 @@ export default function EmployeeManagement({
 		};
 	}, [isHROrAdmin]);
 
-	// Get unique designations from employees
-	const uniqueDesignations = useMemo(() => {
-		const designations = employees
-			.map((emp) => emp.designation)
-			.filter((des): des is string => Boolean(des && des.trim() !== ""))
-			.sort();
-		return Array.from(new Set(designations));
+	const designationsFromEmployees = useMemo(() => {
+		const fromEmployees = employees
+			.map((e) => e.designation)
+			.filter((d): d is string => Boolean(d && String(d).trim()));
+		return Array.from(new Set(fromEmployees)).sort();
 	}, [employees]);
+	const uniqueDesignations = designations.length > 0 ? designations : designationsFromEmployees;
 
-	// Get count for each designation
-	const designationCounts = useMemo(() => {
-		const counts: Record<string, number> = {};
-		employees.forEach((emp) => {
-			if (emp.designation && emp.designation.trim() !== "") {
-				counts[emp.designation] = (counts[emp.designation] || 0) + 1;
-			}
-		});
-		return counts;
-	}, [employees]);
-
-	// Filter employees based on search term and designation filter
-	const filteredEmployees = useMemo(() => {
-		let filtered = employees;
-
-		// Apply designation filter
-		if (designationFilter) {
-			filtered = filtered.filter(
-				(employee) => employee.designation === designationFilter,
-			);
-		}
-
-		// Apply search term filter
-		if (searchTerm.trim()) {
-			const searchLower = searchTerm.toLowerCase().trim();
-			const normalize = (v?: string | null) =>
-				(v || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-			const searchNorm = normalize(searchLower);
-
-			filtered = filtered.filter((employee) => {
-				const nameMatch = employee.name
-					.toLowerCase()
-					.includes(searchLower);
-				const emailMatch = employee.email
-					.toLowerCase()
-					.includes(searchLower);
-				const designationMatch = employee.designation
-					?.toLowerCase()
-					.includes(searchLower);
-				const roleMatch = employee.role
-					.toLowerCase()
-					.includes(searchLower);
-				const empIdMatch = searchNorm
-					? normalize(employee.empId).includes(searchNorm)
-					: false;
-				return (
-					nameMatch ||
-					emailMatch ||
-					designationMatch ||
-					roleMatch ||
-					empIdMatch
-				);
-			});
-		}
-
-		return filtered;
-	}, [employees, searchTerm, designationFilter]);
-
-	// Pagination logic
-	const paginatedEmployees = useMemo(() => {
-		const startIndex = (currentPage - 1) * itemsPerPage;
-		const endIndex = startIndex + itemsPerPage;
-		return filteredEmployees.slice(startIndex, endIndex);
-	}, [filteredEmployees, currentPage]);
-
-	const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-
-	// Handle search with page reset
-	const handleSearchChange = (value: string) => {
-		setSearchTerm(value);
-		if (currentPage !== 1) {
-			setCurrentPage(1);
-		}
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page);
+		fetchEmployees(page);
 	};
 
-	// Handle designation filter change
+	const handleSearchChange = (value: string) => {
+		setSearchTerm(value);
+		setCurrentPage(1);
+		fetchEmployees(1, { search: value, designation: designationFilter });
+	};
+
 	const handleDesignationFilterChange = (value: string) => {
 		setDesignationFilter(value);
-		if (currentPage !== 1) {
-			setCurrentPage(1);
-		}
+		setCurrentPage(1);
+		fetchEmployees(1, { search: searchTerm, designation: value });
 	};
 
 	return (
@@ -712,8 +650,7 @@ export default function EmployeeManagement({
 													? "bg-white/20 text-white"
 													: "bg-gray-200 text-gray-600"
 											}`}>
-											{designationCounts[designation] ||
-												0}
+											{designationFilter === designation ? "✓" : ""}
 										</span>
 									</button>
 								))}
@@ -759,7 +696,17 @@ export default function EmployeeManagement({
 							</tr>
 						</thead>
 						<tbody className='bg-white divide-y divide-gray-200'>
-							{paginatedEmployees.map((employee) => (
+							{loadingList ? (
+								<tr>
+									<td
+										colSpan={10}
+										className='px-3 py-8 text-center text-gray-500'>
+										<LoadingDots />
+									</td>
+								</tr>
+							) : (
+								<>
+							{employees.map((employee) => (
 								<motion.tr
 									key={employee._id}
 									initial={{ opacity: 0 }}
@@ -928,6 +875,8 @@ export default function EmployeeManagement({
 									</td>
 								</motion.tr>
 							))}
+								</>
+							)}
 						</tbody>
 					</table>
 				</div>
@@ -935,9 +884,9 @@ export default function EmployeeManagement({
 					<Pagination
 						currentPage={currentPage}
 						totalPages={totalPages}
-						onPageChange={setCurrentPage}
-						totalItems={filteredEmployees.length}
-						itemsPerPage={itemsPerPage}
+						onPageChange={handlePageChange}
+						totalItems={totalCount}
+						itemsPerPage={EMPLOYEES_PAGE_SIZE}
 					/>
 				)}
 			</div>

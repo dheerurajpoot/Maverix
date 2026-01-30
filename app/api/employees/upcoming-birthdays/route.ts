@@ -6,6 +6,14 @@ import User from '@/models/User';
 
 export const dynamic = 'force-dynamic';
 
+const DEFAULT_LIMIT = 10;
+
+function getNextThreeMonths1Based(): number[] {
+  const now = new Date();
+  const current = now.getMonth() + 1; // 1–12
+  return [current, (current % 12) + 1, ((current + 1) % 12) + 1];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,21 +23,23 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const employees = await User.find({
-      dateOfBirth: { $exists: true, $ne: null },
-    })
-      .select('_id name email profileImage dateOfBirth role designation')
-      .lean();
-
+    const monthsToInclude = getNextThreeMonths1Based();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const currentYear = today.getFullYear();
-    const getAllBirthdays = request.nextUrl.searchParams.get('all') === 'true';
+    const showAll = request.nextUrl.searchParams.get('all') === 'true';
 
-    const upcomingBirthdays = employees
-      .filter((emp: any) => emp.dateOfBirth)
-      .map((emp: any) => {
-        const dob = new Date(emp.dateOfBirth);
+    const employees = await User.find({
+      dateOfBirth: { $exists: true, $ne: null },
+      $expr: { $in: [{ $month: '$dateOfBirth' }, monthsToInclude] },
+    })
+      .select('_id name email profileImage dateOfBirth designation')
+      .lean();
+
+    type EmpLean = { dateOfBirth?: Date; _id: unknown; name: string; email: string; profileImage?: string; designation?: string };
+    const upcomingBirthdays = (employees as EmpLean[])
+      .map((emp) => {
+        const dob = new Date(emp.dateOfBirth!);
         const birthMonth = dob.getMonth();
         const birthDay = dob.getDate();
         let nextBirthday = new Date(currentYear, birthMonth, birthDay);
@@ -43,7 +53,7 @@ export async function GET(request: NextRequest) {
           ? emp.dateOfBirth.toISOString().split('T')[0]
           : String(emp.dateOfBirth).split('T')[0];
         return {
-          _id: emp._id,
+          _id: String(emp._id),
           name: emp.name,
           email: emp.email,
           profileImage: emp.profileImage,
@@ -52,23 +62,16 @@ export async function GET(request: NextRequest) {
           daysUntil,
         };
       })
-      .sort((a: any, b: any) => {
-        if (getAllBirthdays) {
-          const aM = new Date(a.dateOfBirth).getMonth();
-          const bM = new Date(b.dateOfBirth).getMonth();
-          if (aM !== bM) return aM - bM;
-          return new Date(a.dateOfBirth).getDate() - new Date(b.dateOfBirth).getDate();
-        }
-        return a.daysUntil - b.daysUntil;
-      });
+      .sort((a, b) => a.daysUntil - b.daysUntil);
 
-    const result = getAllBirthdays ? upcomingBirthdays : upcomingBirthdays.slice(0, 10);
+    const result = showAll ? upcomingBirthdays : upcomingBirthdays.slice(0, DEFAULT_LIMIT);
 
     const res = NextResponse.json({ birthdays: result });
     res.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600');
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Upcoming birthdays error:', error);
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

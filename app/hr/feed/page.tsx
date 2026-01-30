@@ -2,7 +2,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import Feed from "@/components/Feed";
 
-export default async function HRFeedPage() {
+export default function HRFeedPage() {
 	return (
 		<DashboardLayout role='hr'>
 			<div className='min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'>

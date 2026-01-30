@@ -2,7 +2,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import TeamManagement from "@/components/TeamManagement";
 
-export default async function AdminTeamsPage() {
+export default function AdminTeamsPage() {
 	return (
 		<DashboardLayout role='admin'>
 			<div className='p-4 md:p-6'>

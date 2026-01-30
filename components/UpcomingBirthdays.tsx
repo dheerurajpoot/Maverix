@@ -19,99 +19,61 @@ interface BirthdayEmployee {
 	daysUntil: number;
 }
 
+function parseBirthday(dateStr: string): { month: number; day: number } | null {
+	const parts = dateStr.split("-").map(Number);
+	if (parts.length < 3) return null;
+	const [, month, day] = parts;
+	if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+	return { month, day };
+}
+
+function getMonthName(month: number): string {
+	return format(new Date(2000, month - 1, 1), "MMMM");
+}
+
 export default function UpcomingBirthdays() {
 	const [birthdays, setBirthdays] = useState<BirthdayEmployee[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [filterType, setFilterType] = useState<"thisMonth" | "all">(
-		"thisMonth",
-	);
+	const [filterType, setFilterType] = useState<"thisMonth" | "all">("thisMonth");
 	const toast = useToast();
 
-	// Fetch all birthdays once - filter client-side
 	const fetchUpcomingBirthdays = useCallback(async () => {
 		try {
 			setLoading(true);
-			const response = await axios.get(
+			const { data } = await axios.get<{ birthdays: BirthdayEmployee[] }>(
 				"/api/employees/upcoming-birthdays?all=true",
 			);
-			setBirthdays(response.data.birthdays || []);
-		} catch (err: any) {
+			setBirthdays(data.birthdays ?? []);
+		} catch (err: unknown) {
 			const message =
-				err?.response?.data?.error ||
-				"An error occurred while fetching upcoming birthdays";
+				(err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+				"Failed to load upcoming birthdays";
 			toast.error(message);
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [toast]);
 
-	// Fetch once on mount, filter happens client-side
 	useEffect(() => {
 		fetchUpcomingBirthdays();
 	}, [fetchUpcomingBirthdays]);
 
 	const getBadgeText = (daysUntil: number, dateOfBirth: string) => {
-		if (daysUntil === 0) {
-			return "Today";
-		} else if (daysUntil === 1) {
-			return "Tomorrow";
-		} else {
-			return formatBirthdayDate(dateOfBirth);
-		}
+		if (daysUntil === 0) return "Today";
+		if (daysUntil === 1) return "Tomorrow";
+		const parsed = parseBirthday(dateOfBirth);
+		return parsed ? format(new Date(2000, parsed.month - 1, parsed.day), "MMM dd") : dateOfBirth;
 	};
 
-	const formatBirthdayDate = (dateOfBirth: string) => {
-		try {
-			const [year, month, day] = dateOfBirth.split("-").map(Number);
-			return format(new Date(2000, month - 1, day), "MMM dd");
-		} catch (e) {
-			return dateOfBirth;
-		}
-	};
-
-	const getMonthFromBirthday = (dateOfBirth: string) => {
-		try {
-			const [year, month, day] = dateOfBirth.split("-").map(Number);
-			return month;
-		} catch (e) {
-			return null;
-		}
-	};
-
-	const getMonthName = (month: number) => {
-		const monthNames = [
-			"January",
-			"February",
-			"March",
-			"April",
-			"May",
-			"June",
-			"July",
-			"August",
-			"September",
-			"October",
-			"November",
-			"December",
-		];
-		return monthNames[month - 1] || "";
-	};
-
-	const getCurrentMonth = () => {
-		return new Date().getMonth() + 1; // Returns 1-12
-	};
-
-	// Group and filter birthdays by current month
-	const currentMonth = getCurrentMonth();
-	const currentMonthBirthdays = birthdays.filter((employee) => {
-		const month = getMonthFromBirthday(employee.dateOfBirth);
-		return month === currentMonth;
+	const currentMonth = new Date().getMonth() + 1;
+	const currentMonthBirthdays = birthdays.filter((emp) => {
+		const parsed = parseBirthday(emp.dateOfBirth);
+		return parsed?.month === currentMonth;
 	});
 
-	const displayedBirthdays =
-		filterType === "thisMonth" ? currentMonthBirthdays : birthdays;
+	const displayedBirthdays = filterType === "thisMonth" ? currentMonthBirthdays : birthdays;
 	const displayedCount = displayedBirthdays.length;
-	const displayMonthName =
-		filterType === "thisMonth" ? getMonthName(currentMonth) : "All Months";
+	const displayMonthName = filterType === "thisMonth" ? getMonthName(currentMonth) : "Next 3 months";
 
 	return (
 		<div className='bg-white rounded-md border border-gray-100 shadow-lg w-full h-[400px] flex flex-col overflow-hidden'>
@@ -149,7 +111,7 @@ export default function UpcomingBirthdays() {
 									? "bg-pink-500 text-white"
 									: "text-gray-600 hover:text-gray-900"
 							}`}>
-							All
+							3 months
 						</button>
 					</div>
 					<div className='px-2.5 py-1 bg-pink-100 rounded-full flex items-center gap-1 flex-shrink-0'>
@@ -185,19 +147,17 @@ export default function UpcomingBirthdays() {
 				) : (
 					<div>
 						{filterType === "all" ? (
-							// Group by months for "All" view
 							<div className='space-y-3'>
-								{Array.from({ length: 12 }, (_, i) => i + 1)
-									.map((month) => {
+								{(() => {
+									const monthsInData = [...new Set(
+										birthdays
+											.map((emp) => parseBirthday(emp.dateOfBirth)?.month)
+											.filter((m): m is number => m != null),
+									)].sort((a, b) => a - b);
+									return monthsInData.map((month) => {
 										const monthBirthdays = birthdays.filter(
-											(emp) =>
-												getMonthFromBirthday(
-													emp.dateOfBirth,
-												) === month,
+											(emp) => parseBirthday(emp.dateOfBirth)?.month === month,
 										);
-										if (monthBirthdays.length === 0)
-											return null;
-
 										return (
 											<div
 												key={month}
@@ -297,11 +257,10 @@ export default function UpcomingBirthdays() {
 												</div>
 											</div>
 										);
-									})
-									.filter(Boolean)}
+									});
+								})()}
 							</div>
 						) : (
-							// Single month view for "This Month"
 							<div className='bg-pink-50 rounded-lg overflow-hidden'>
 								{/* Month Header */}
 								<div className='flex items-center gap-2 px-4 py-3'>

@@ -1,17 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import connectDB from "@/lib/mongodb";
-import User from "@/models/User";
 import EmployeeManagement from "@/components/EmployeeManagement";
 
-export default async function HREmployeesPage() {
-	await connectDB();
-	const employees = await User.find({ role: { $ne: "admin" } })
-		.select("-password")
-		.select(
-			"_id name email role designation profileImage emailVerified approved weeklyOff clockInTime createdAt",
-		)
-		.lean();
-
+export default function HREmployeesPage() {
 	return (
 		<DashboardLayout role='hr'>
 			<div className='space-y-4'>
@@ -26,10 +16,7 @@ export default async function HREmployeesPage() {
 					</div>
 				</div>
 
-				<EmployeeManagement
-					initialEmployees={JSON.parse(JSON.stringify(employees))}
-					canChangeRole={false}
-				/>
+				<EmployeeManagement canChangeRole={false} />
 			</div>
 		</DashboardLayout>
 	);

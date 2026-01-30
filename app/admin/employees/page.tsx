@@ -3,19 +3,9 @@ import dynamic from "next/dynamic";
 const DashboardLayout = dynamic(() => import("@/components/DashboardLayout"), {
 	ssr: false,
 });
-import connectDB from "@/lib/mongodb";
-import User from "@/models/User";
 import EmployeeManagement from "@/components/EmployeeManagement";
 
-export default async function EmployeesPage() {
-	await connectDB();
-	const employees = await User.find({ role: { $ne: "admin" } })
-		.select("-password")
-		.select(
-			"_id name email role designation profileImage emailVerified approved weeklyOff clockInTime createdAt",
-		)
-		.lean();
-
+export default function EmployeesPage() {
 	return (
 		<DashboardLayout role='admin'>
 			<div className='space-y-4'>
@@ -30,9 +20,7 @@ export default async function EmployeesPage() {
 					</div>
 				</div>
 
-				<EmployeeManagement
-					initialEmployees={JSON.parse(JSON.stringify(employees))}
-				/>
+				<EmployeeManagement />
 			</div>
 		</DashboardLayout>
 	);

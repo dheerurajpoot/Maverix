@@ -25,27 +25,80 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const minimal = request.nextUrl.searchParams.get('minimal') === 'true';
+    const pageParam = request.nextUrl.searchParams.get('page');
+    const limitParam = request.nextUrl.searchParams.get('limit');
+    const search = request.nextUrl.searchParams.get('search')?.trim() || '';
+    const designation = request.nextUrl.searchParams.get('designation')?.trim() || '';
 
+    const usePagination = !minimal && (pageParam != null || limitParam != null);
+    const page = usePagination ? Math.max(1, parseInt(pageParam || '1', 10) || 1) : 1;
+    const limit = usePagination ? Math.min(100, Math.max(1, parseInt(limitParam || '15', 10) || 15)) : 0;
+
+    const baseQuery: any = { role: { $ne: 'admin' } };
+    if (designation) baseQuery.designation = designation;
+    if (search) {
+      const searchRegex = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+      baseQuery.$or = [
+        { name: searchRegex },
+        { email: searchRegex },
+        { designation: searchRegex },
+        { role: searchRegex },
+        { empId: searchRegex },
+      ];
+    }
+
+    if (minimal) {
+      // Dropdowns / leave allotment: return all users with minimal fields (no pagination)
+      const users = await User.find(baseQuery)
+        .select('_id name email role profileImage')
+        .sort({ name: 1 })
+        .lean();
+      const response = NextResponse.json({ users });
+      response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
+      return response;
+    }
+
+    if (usePagination) {
+      const [total, users, designations] = await Promise.all([
+        User.countDocuments(baseQuery),
+        User.find(baseQuery)
+          .select('_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt bankName accountNumber ifscCode panCardImage aadharCardImage location panNumber aadharNumber')
+          .sort({ name: 1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean(),
+        User.distinct('designation', { role: { $ne: 'admin' }, designation: { $exists: true, $nin: [null, ''] } }),
+      ]);
+
+      const sanitizedUsers = (users as any[]).map((u) => {
+        const validYear = typeof u.joiningYear === 'number' && u.joiningYear >= 1900 && u.joiningYear <= 2100;
+        return validYear ? u : { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
+      });
+      const totalPages = Math.ceil(total / limit) || 1;
+      const response = NextResponse.json({
+        users: sanitizedUsers,
+        total,
+        page,
+        limit,
+        totalPages,
+        designations: designations.filter((d): d is string => Boolean(d && String(d).trim())).sort(),
+      });
+      response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
+      return response;
+    }
+
+    // Legacy: no minimal, no page/limit – return first page for backward compatibility
     if (!minimal) {
       await ensureEmpIdsByJoiningYear();
     }
-
-    const users = await User.find({ role: { $ne: 'admin' } })
-      .select(
-        minimal
-          ? '_id name email role profileImage'
-          : '_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt bankName accountNumber ifscCode panCardImage aadharCardImage location panNumber aadharNumber'
-      )
+    const users = await User.find(baseQuery)
+      .select('_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt bankName accountNumber ifscCode panCardImage aadharCardImage location panNumber aadharNumber')
       .sort({ name: 1 })
       .lean();
-
-    const sanitizedUsers = minimal
-      ? users
-      : (users as any[]).map((u) => {
-          const validYear = typeof u.joiningYear === 'number' && u.joiningYear >= 1900 && u.joiningYear <= 2100;
-          return validYear ? u : { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
-        });
-
+    const sanitizedUsers = (users as any[]).map((u) => {
+      const validYear = typeof u.joiningYear === 'number' && u.joiningYear >= 1900 && u.joiningYear <= 2100;
+      return validYear ? u : { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
+    });
     const response = NextResponse.json({ users: sanitizedUsers });
     response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
     return response;

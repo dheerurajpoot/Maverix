@@ -102,6 +102,7 @@ export default function FinanceManagement({
 	const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
 	const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
 	const employeeDropdownRef = useRef<HTMLDivElement>(null);
+	const [loadingEmployees, setLoadingEmployees] = useState(false);
 	const [viewingDocument, setViewingDocument] = useState<{
 		financeId: string;
 		type: "pan" | "aadhar";
@@ -140,6 +141,7 @@ export default function FinanceManagement({
 	const fetchEmployees = useCallback(async () => {
 		// Include both employees and HR users (exclude only admin)
 		try {
+			setLoadingEmployees(true);
 			const res = await fetch("/api/users");
 			const data = await res.json();
 			if (res.ok) {
@@ -160,9 +162,11 @@ export default function FinanceManagement({
 					}) || [];
 
 				setEmployees(filteredUsers);
+				setLoadingEmployees(false);
 			}
 		} catch (err) {
 			console.error("Failed to fetch employees:", err);
+			setLoadingEmployees(false);
 		}
 	}, []);
 
@@ -607,424 +611,446 @@ export default function FinanceManagement({
 
 				{/* Finance Records / Employee List */}
 				{canEdit ? (
-					filteredEmployeesWithFinance.length === 0 ? (
+					loadingEmployees ? (
 						<div className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-8 text-center'>
-							<DollarSign className='w-12 h-12 text-gray-400 mx-auto mb-3' />
+							<LoadingDots size='lg' className='mb-3' />
 							<p className='text-gray-600 font-secondary'>
-								{searchTerm
-									? "No employees found"
-									: "No employees yet"}
+								Loading employees...
 							</p>
 						</div>
 					) : (
 						<div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
-							{filteredEmployeesWithFinance.map((item, index) => {
-								const { employee, finance } = item;
-								return (
-									<motion.div
-										key={employee._id}
-										initial={{ opacity: 0, y: 20 }}
-										animate={{ opacity: 1, y: 0 }}
-										transition={{ delay: index * 0.05 }}
-										className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5 hover:shadow-xl transition-shadow'>
-										<div className='flex items-start justify-between mb-3'>
-											<div className='flex items-center gap-3'>
-												<UserAvatar
-													name={employee.name}
-													image={
-														employee.profileImage
-													}
-													size='sm'
-												/>
-												<div>
-													<div className='font-semibold text-gray-900 font-primary text-sm'>
-														{employee.name}
+							{filteredEmployeesWithFinance.length === 0 ? (
+								<div className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-8 text-center'>
+									<DollarSign className='w-12 h-12 text-gray-400 mx-auto mb-3' />
+									<p className='text-gray-600 font-secondary'>
+										{searchTerm
+											? "No employees found"
+											: "No employees yet"}
+									</p>
+								</div>
+							) : (
+								filteredEmployeesWithFinance.map(
+									(item, index) => {
+										const { employee, finance } = item;
+										return (
+											<motion.div
+												key={employee._id}
+												initial={{ opacity: 0, y: 20 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													delay: index * 0.05,
+												}}
+												className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5 hover:shadow-xl transition-shadow'>
+												<div className='flex items-start justify-between mb-3'>
+													<div className='flex items-center gap-3'>
+														<UserAvatar
+															name={employee.name}
+															image={
+																employee.profileImage
+															}
+															size='sm'
+														/>
+														<div>
+															<div className='font-semibold text-gray-900 font-primary text-sm'>
+																{employee.name}
+															</div>
+															<div className='text-xs text-gray-500 font-secondary'>
+																{employee.email}
+															</div>
+														</div>
 													</div>
-													<div className='text-xs text-gray-500 font-secondary'>
-														{employee.email}
+													<div className='flex items-center gap-2'>
+														{finance &&
+															!isOwnFinanceRecord(
+																finance,
+															) && (
+																<div className='flex items-center gap-1'>
+																	<button
+																		onClick={() =>
+																			handleOpenEditModal(
+																				finance,
+																			)
+																		}
+																		className='p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors'
+																		title='Edit'>
+																		<Edit className='w-4 h-4' />
+																	</button>
+																	<button
+																		onClick={() =>
+																			handleOpenDeleteModal(
+																				finance,
+																			)
+																		}
+																		className='p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors'
+																		title='Delete'>
+																		<Trash2 className='w-4 h-4' />
+																	</button>
+																</div>
+															)}
 													</div>
 												</div>
-											</div>
-											<div className='flex items-center gap-2'>
-												{finance &&
-													!isOwnFinanceRecord(
-														finance,
-													) && (
-														<div className='flex items-center gap-1'>
-															<button
-																onClick={() =>
-																	handleOpenEditModal(
-																		finance,
-																	)
-																}
-																className='p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors'
-																title='Edit'>
-																<Edit className='w-4 h-4' />
-															</button>
-															<button
-																onClick={() =>
-																	handleOpenDeleteModal(
-																		finance,
-																	)
-																}
-																className='p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors'
-																title='Delete'>
-																<Trash2 className='w-4 h-4' />
-															</button>
+
+												<div className='pt-3 border-t border-gray-200'>
+													{/* Salary Section */}
+													{finance ? (
+														<div className='flex justify-between items-center mb-3'>
+															<span className='text-sm font-semibold text-gray-700 font-primary'>
+																Salary
+															</span>
+															<span className='text-xl font-bold text-primary font-primary'>
+																{formatCurrency(
+																	finance.baseSalary,
+																)}
+															</span>
+														</div>
+													) : (
+														<div className='flex justify-between items-center mb-3'>
+															<span className='text-sm font-semibold text-gray-700 font-primary'>
+																Salary
+															</span>
+															<span className='text-sm font-medium text-gray-500 font-secondary italic'>
+																Not allocated
+															</span>
 														</div>
 													)}
-											</div>
-										</div>
 
-										<div className='pt-3 border-t border-gray-200'>
-											{/* Salary Section */}
-											{finance ? (
-												<div className='flex justify-between items-center mb-3'>
-													<span className='text-sm font-semibold text-gray-700 font-primary'>
-														Salary
-													</span>
-													<span className='text-xl font-bold text-primary font-primary'>
-														{formatCurrency(
-															finance.baseSalary,
-														)}
-													</span>
-												</div>
-											) : (
-												<div className='flex justify-between items-center mb-3'>
-													<span className='text-sm font-semibold text-gray-700 font-primary'>
-														Salary
-													</span>
-													<span className='text-sm font-medium text-gray-500 font-secondary italic'>
-														Not allocated
-													</span>
-												</div>
-											)}
-
-											{/* Bank Details - Always visible for admin/HR */}
-											<div
-												className={`mt-3 pt-3 rounded-lg p-3 ${
-													employee.accountNumber
-														? "bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50"
-														: "bg-yellow-50/50 border border-yellow-200/50"
-												}`}>
-												<div className='flex items-center gap-1.5 mb-2'>
-													<CreditCard
-														className={`w-4 h-4 ${employee.accountNumber ? "text-blue-600" : "text-yellow-600"}`}
-													/>
-													<span className='text-xs font-semibold text-gray-700 font-primary'>
-														Bank Details
-													</span>
-													{employee.accountNumber && (
-														<span className='ml-auto px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium'>
-															Verified
-														</span>
-													)}
-												</div>
-												{employee.accountNumber ? (
-													<div className='space-y-2.5'>
-														{employee.bankName && (
-															<div className='flex justify-between items-center text-xs'>
-																<span className='text-gray-600 font-secondary font-medium'>
-																	Bank Name:
+													{/* Bank Details - Always visible for admin/HR */}
+													<div
+														className={`mt-3 pt-3 rounded-lg p-3 ${
+															employee.accountNumber
+																? "bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50"
+																: "bg-yellow-50/50 border border-yellow-200/50"
+														}`}>
+														<div className='flex items-center gap-1.5 mb-2'>
+															<CreditCard
+																className={`w-4 h-4 ${employee.accountNumber ? "text-blue-600" : "text-yellow-600"}`}
+															/>
+															<span className='text-xs font-semibold text-gray-700 font-primary'>
+																Bank Details
+															</span>
+															{employee.accountNumber && (
+																<span className='ml-auto px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium'>
+																	Verified
 																</span>
-																<span className='font-semibold text-gray-900 font-secondary'>
-																	{
-																		employee.bankName
-																	}
-																</span>
-															</div>
-														)}
-														{employee.accountNumber && (
-															<div className='flex justify-between items-center text-xs'>
-																<span className='text-gray-600 font-secondary font-medium'>
-																	Account
-																	Number:
-																</span>
-																<span className='font-semibold text-gray-900 font-secondary font-mono'>
-																	{
-																		employee.accountNumber
-																	}
-																</span>
-															</div>
-														)}
-														{employee.ifscCode && (
-															<div className='flex justify-between items-center text-xs'>
-																<span className='text-gray-600 font-secondary font-medium'>
-																	IFSC Code:
-																</span>
-																<span className='font-semibold text-gray-900 font-secondary font-mono'>
-																	{
-																		employee.ifscCode
-																	}
-																</span>
-															</div>
-														)}
-														{(employee.location ||
-															employee.panNumber ||
-															employee.aadharNumber) && (
-															<div className='pt-2 mt-2 border-t border-gray-200 space-y-2'>
-																{employee.location && (
+															)}
+														</div>
+														{employee.accountNumber ? (
+															<div className='space-y-2.5'>
+																{employee.bankName && (
 																	<div className='flex justify-between items-center text-xs'>
-																		<span className='text-gray-600 font-secondary font-medium flex items-center gap-1'>
-																			<MapPin className='w-3 h-3' />
-																			Location:
+																		<span className='text-gray-600 font-secondary font-medium'>
+																			Bank
+																			Name:
 																		</span>
 																		<span className='font-semibold text-gray-900 font-secondary'>
 																			{
-																				employee.location
+																				employee.bankName
 																			}
 																		</span>
 																	</div>
 																)}
-																{employee.panNumber && (
+																{employee.accountNumber && (
 																	<div className='flex justify-between items-center text-xs'>
 																		<span className='text-gray-600 font-secondary font-medium'>
-																			PAN
-																			No:
+																			Account
+																			Number:
 																		</span>
 																		<span className='font-semibold text-gray-900 font-secondary font-mono'>
 																			{
-																				employee.panNumber
+																				employee.accountNumber
 																			}
 																		</span>
 																	</div>
 																)}
-																{employee.aadharNumber && (
+																{employee.ifscCode && (
 																	<div className='flex justify-between items-center text-xs'>
 																		<span className='text-gray-600 font-secondary font-medium'>
-																			Aadhar
-																			No:
+																			IFSC
+																			Code:
 																		</span>
 																		<span className='font-semibold text-gray-900 font-secondary font-mono'>
 																			{
-																				employee.aadharNumber
+																				employee.ifscCode
 																			}
 																		</span>
+																	</div>
+																)}
+																{(employee.location ||
+																	employee.panNumber ||
+																	employee.aadharNumber) && (
+																	<div className='pt-2 mt-2 border-t border-gray-200 space-y-2'>
+																		{employee.location && (
+																			<div className='flex justify-between items-center text-xs'>
+																				<span className='text-gray-600 font-secondary font-medium flex items-center gap-1'>
+																					<MapPin className='w-3 h-3' />
+																					Location:
+																				</span>
+																				<span className='font-semibold text-gray-900 font-secondary'>
+																					{
+																						employee.location
+																					}
+																				</span>
+																			</div>
+																		)}
+																		{employee.panNumber && (
+																			<div className='flex justify-between items-center text-xs'>
+																				<span className='text-gray-600 font-secondary font-medium'>
+																					PAN
+																					No:
+																				</span>
+																				<span className='font-semibold text-gray-900 font-secondary font-mono'>
+																					{
+																						employee.panNumber
+																					}
+																				</span>
+																			</div>
+																		)}
+																		{employee.aadharNumber && (
+																			<div className='flex justify-between items-center text-xs'>
+																				<span className='text-gray-600 font-secondary font-medium'>
+																					Aadhar
+																					No:
+																				</span>
+																				<span className='font-semibold text-gray-900 font-secondary font-mono'>
+																					{
+																						employee.aadharNumber
+																					}
+																				</span>
+																			</div>
+																		)}
 																	</div>
 																)}
 															</div>
+														) : (
+															<div className='flex items-center gap-2 text-xs text-yellow-700 bg-yellow-100/50 rounded px-2 py-1.5'>
+																<CreditCard className='w-3.5 h-3.5' />
+																<span className='font-secondary'>
+																	Employee has
+																	not added
+																	bank details
+																	yet. They
+																	can add it
+																	from their
+																	Finance
+																	page.
+																</span>
+															</div>
 														)}
 													</div>
-												) : (
-													<div className='flex items-center gap-2 text-xs text-yellow-700 bg-yellow-100/50 rounded px-2 py-1.5'>
-														<CreditCard className='w-3.5 h-3.5' />
-														<span className='font-secondary'>
-															Employee has not
-															added bank details
-															yet. They can add it
-															from their Finance
-															page.
-														</span>
-													</div>
-												)}
-											</div>
 
-											{/* Documents Section - Always visible, show user-level documents */}
-											<div
-												className={`mt-3 pt-3 rounded-lg p-3 ${
-													employee.panCardImage ||
-													employee.aadharCardImage
-														? "bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/50"
-														: "bg-yellow-50/50 border border-yellow-200/50"
-												}`}>
-												<div className='flex items-center gap-1.5 mb-2'>
-													<FileText
-														className={`w-4 h-4 ${employee.panCardImage || employee.aadharCardImage ? "text-green-600" : "text-yellow-600"}`}
-													/>
-													<span className='text-xs font-semibold text-gray-700 font-primary'>
-														Documents
-													</span>
-													{(employee.panCardImage ||
-														employee.aadharCardImage) && (
-														<span className='ml-auto px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium'>
-															Uploaded
-														</span>
-													)}
+													{/* Documents Section - Always visible, show user-level documents */}
+													<div
+														className={`mt-3 pt-3 rounded-lg p-3 ${
+															employee.panCardImage ||
+															employee.aadharCardImage
+																? "bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/50"
+																: "bg-yellow-50/50 border border-yellow-200/50"
+														}`}>
+														<div className='flex items-center gap-1.5 mb-2'>
+															<FileText
+																className={`w-4 h-4 ${employee.panCardImage || employee.aadharCardImage ? "text-green-600" : "text-yellow-600"}`}
+															/>
+															<span className='text-xs font-semibold text-gray-700 font-primary'>
+																Documents
+															</span>
+															{(employee.panCardImage ||
+																employee.aadharCardImage) && (
+																<span className='ml-auto px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium'>
+																	Uploaded
+																</span>
+															)}
+														</div>
+														{employee.panCardImage ||
+														employee.aadharCardImage ? (
+															<div className='grid grid-cols-2 gap-2'>
+																{employee.panCardImage && (
+																	<div className='relative group'>
+																		<button
+																			onClick={() =>
+																				setViewingDocument(
+																					{
+																						financeId:
+																							employee._id,
+																						type: "pan",
+																						url: employee.panCardImage!,
+																					},
+																				)
+																			}
+																			className='w-full relative flex flex-col items-center justify-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors bg-white/60'
+																			title='View PAN Card'>
+																			<ImageIcon className='w-4 h-4 text-gray-600 mb-1' />
+																			<span className='text-xs text-gray-600 font-secondary'>
+																				PAN
+																			</span>
+																			<div className='absolute inset-0 bg-green-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
+																				<Eye className='w-3 h-3 text-green-600' />
+																			</div>
+																		</button>
+																		<button
+																			onClick={(
+																				e,
+																			) => {
+																				e.stopPropagation();
+																				const downloadDocument =
+																					async () => {
+																						try {
+																							const imageUrl =
+																								employee.panCardImage!;
+																							const response =
+																								await fetch(
+																									imageUrl,
+																								);
+																							const blob =
+																								await response.blob();
+																							const url =
+																								window.URL.createObjectURL(
+																									blob,
+																								);
+																							const link =
+																								document.createElement(
+																									"a",
+																								);
+																							link.href =
+																								url;
+																							link.download = `${employee.name.replace(/\s+/g, "_")}_PAN_Card.jpg`;
+																							document.body.appendChild(
+																								link,
+																							);
+																							link.click();
+																							document.body.removeChild(
+																								link,
+																							);
+																							window.URL.revokeObjectURL(
+																								url,
+																							);
+																							toast.success(
+																								"PAN Card downloaded successfully",
+																							);
+																						} catch (err) {
+																							console.error(
+																								"Download error:",
+																								err,
+																							);
+																							toast.error(
+																								"Failed to download PAN Card",
+																							);
+																						}
+																					};
+																				downloadDocument();
+																			}}
+																			className='absolute top-1 right-1 p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100 z-10'
+																			title='Download PAN Card'>
+																			<Download className='w-3 h-3' />
+																		</button>
+																	</div>
+																)}
+																{employee.aadharCardImage && (
+																	<div className='relative group'>
+																		<button
+																			onClick={() =>
+																				setViewingDocument(
+																					{
+																						financeId:
+																							employee._id,
+																						type: "aadhar",
+																						url: employee.aadharCardImage!,
+																					},
+																				)
+																			}
+																			className='w-full relative flex flex-col items-center justify-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors bg-white/60'
+																			title='View Aadhar Card'>
+																			<ImageIcon className='w-4 h-4 text-gray-600 mb-1' />
+																			<span className='text-xs text-gray-600 font-secondary'>
+																				Aadhar
+																			</span>
+																			<div className='absolute inset-0 bg-green-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
+																				<Eye className='w-3 h-3 text-green-600' />
+																			</div>
+																		</button>
+																		<button
+																			onClick={(
+																				e,
+																			) => {
+																				e.stopPropagation();
+																				const downloadDocument =
+																					async () => {
+																						try {
+																							const imageUrl =
+																								employee.aadharCardImage!;
+																							const response =
+																								await fetch(
+																									imageUrl,
+																								);
+																							const blob =
+																								await response.blob();
+																							const url =
+																								window.URL.createObjectURL(
+																									blob,
+																								);
+																							const link =
+																								document.createElement(
+																									"a",
+																								);
+																							link.href =
+																								url;
+																							link.download = `${employee.name.replace(/\s+/g, "_")}_Aadhar_Card.jpg`;
+																							document.body.appendChild(
+																								link,
+																							);
+																							link.click();
+																							document.body.removeChild(
+																								link,
+																							);
+																							window.URL.revokeObjectURL(
+																								url,
+																							);
+																							toast.success(
+																								"Aadhar Card downloaded successfully",
+																							);
+																						} catch (err) {
+																							console.error(
+																								"Download error:",
+																								err,
+																							);
+																							toast.error(
+																								"Failed to download Aadhar Card",
+																							);
+																						}
+																					};
+																				downloadDocument();
+																			}}
+																			className='absolute top-1 right-1 p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100 z-10'
+																			title='Download Aadhar Card'>
+																			<Download className='w-3 h-3' />
+																		</button>
+																	</div>
+																)}
+															</div>
+														) : (
+															<div className='flex items-center gap-2 text-xs text-yellow-700 bg-yellow-100/50 rounded px-2 py-1.5'>
+																<FileText className='w-3.5 h-3.5' />
+																<span className='font-secondary'>
+																	Employee has
+																	not uploaded
+																	documents
+																	yet. They
+																	can upload
+																	PAN and
+																	Aadhar cards
+																	from their
+																	Finance
+																	page.
+																</span>
+															</div>
+														)}
+													</div>
 												</div>
-												{employee.panCardImage ||
-												employee.aadharCardImage ? (
-													<div className='grid grid-cols-2 gap-2'>
-														{employee.panCardImage && (
-															<div className='relative group'>
-																<button
-																	onClick={() =>
-																		setViewingDocument(
-																			{
-																				financeId:
-																					employee._id,
-																				type: "pan",
-																				url: employee.panCardImage!,
-																			},
-																		)
-																	}
-																	className='w-full relative flex flex-col items-center justify-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors bg-white/60'
-																	title='View PAN Card'>
-																	<ImageIcon className='w-4 h-4 text-gray-600 mb-1' />
-																	<span className='text-xs text-gray-600 font-secondary'>
-																		PAN
-																	</span>
-																	<div className='absolute inset-0 bg-green-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-																		<Eye className='w-3 h-3 text-green-600' />
-																	</div>
-																</button>
-																<button
-																	onClick={(
-																		e,
-																	) => {
-																		e.stopPropagation();
-																		const downloadDocument =
-																			async () => {
-																				try {
-																					const imageUrl =
-																						employee.panCardImage!;
-																					const response =
-																						await fetch(
-																							imageUrl,
-																						);
-																					const blob =
-																						await response.blob();
-																					const url =
-																						window.URL.createObjectURL(
-																							blob,
-																						);
-																					const link =
-																						document.createElement(
-																							"a",
-																						);
-																					link.href =
-																						url;
-																					link.download = `${employee.name.replace(/\s+/g, "_")}_PAN_Card.jpg`;
-																					document.body.appendChild(
-																						link,
-																					);
-																					link.click();
-																					document.body.removeChild(
-																						link,
-																					);
-																					window.URL.revokeObjectURL(
-																						url,
-																					);
-																					toast.success(
-																						"PAN Card downloaded successfully",
-																					);
-																				} catch (err) {
-																					console.error(
-																						"Download error:",
-																						err,
-																					);
-																					toast.error(
-																						"Failed to download PAN Card",
-																					);
-																				}
-																			};
-																		downloadDocument();
-																	}}
-																	className='absolute top-1 right-1 p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100 z-10'
-																	title='Download PAN Card'>
-																	<Download className='w-3 h-3' />
-																</button>
-															</div>
-														)}
-														{employee.aadharCardImage && (
-															<div className='relative group'>
-																<button
-																	onClick={() =>
-																		setViewingDocument(
-																			{
-																				financeId:
-																					employee._id,
-																				type: "aadhar",
-																				url: employee.aadharCardImage!,
-																			},
-																		)
-																	}
-																	className='w-full relative flex flex-col items-center justify-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors bg-white/60'
-																	title='View Aadhar Card'>
-																	<ImageIcon className='w-4 h-4 text-gray-600 mb-1' />
-																	<span className='text-xs text-gray-600 font-secondary'>
-																		Aadhar
-																	</span>
-																	<div className='absolute inset-0 bg-green-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-																		<Eye className='w-3 h-3 text-green-600' />
-																	</div>
-																</button>
-																<button
-																	onClick={(
-																		e,
-																	) => {
-																		e.stopPropagation();
-																		const downloadDocument =
-																			async () => {
-																				try {
-																					const imageUrl =
-																						employee.aadharCardImage!;
-																					const response =
-																						await fetch(
-																							imageUrl,
-																						);
-																					const blob =
-																						await response.blob();
-																					const url =
-																						window.URL.createObjectURL(
-																							blob,
-																						);
-																					const link =
-																						document.createElement(
-																							"a",
-																						);
-																					link.href =
-																						url;
-																					link.download = `${employee.name.replace(/\s+/g, "_")}_Aadhar_Card.jpg`;
-																					document.body.appendChild(
-																						link,
-																					);
-																					link.click();
-																					document.body.removeChild(
-																						link,
-																					);
-																					window.URL.revokeObjectURL(
-																						url,
-																					);
-																					toast.success(
-																						"Aadhar Card downloaded successfully",
-																					);
-																				} catch (err) {
-																					console.error(
-																						"Download error:",
-																						err,
-																					);
-																					toast.error(
-																						"Failed to download Aadhar Card",
-																					);
-																				}
-																			};
-																		downloadDocument();
-																	}}
-																	className='absolute top-1 right-1 p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100 z-10'
-																	title='Download Aadhar Card'>
-																	<Download className='w-3 h-3' />
-																</button>
-															</div>
-														)}
-													</div>
-												) : (
-													<div className='flex items-center gap-2 text-xs text-yellow-700 bg-yellow-100/50 rounded px-2 py-1.5'>
-														<FileText className='w-3.5 h-3.5' />
-														<span className='font-secondary'>
-															Employee has not
-															uploaded documents
-															yet. They can upload
-															PAN and Aadhar cards
-															from their Finance
-															page.
-														</span>
-													</div>
-												)}
-											</div>
-										</div>
-									</motion.div>
-								);
-							})}
+											</motion.div>
+										);
+									},
+								)
+							)}
 						</div>
 					)
 				) : // Employee view - show only their finances

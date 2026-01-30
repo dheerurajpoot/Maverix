@@ -12,24 +12,26 @@ import { generateEmployeeId, extractEmployeeIdSequence } from '@/utils/generateE
 
 export const dynamic = 'force-dynamic';
 
+const CLOCK_IN_TIME_REGEX = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     const userRole = (session.user as any).role;
     if (userRole !== 'admin' && userRole !== 'hr') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
+    }
 
-    const body = await request.json();
-    const { name, role, designation, joiningYear, weeklyOff, clockInTime } = body;
+    const { name, role, designation, joiningYear, weeklyOff, clockInTime } = await request.json();
 
     await connectDB();
 
@@ -52,86 +54,65 @@ export async function PUT(
       user.role = role;
     }
     if (designation !== undefined) {
-      user.designation = designation && designation.trim() !== '' ? designation.trim() : undefined;
+      user.designation = designation && String(designation).trim() !== '' ? String(designation).trim() : undefined;
     }
-    
-    // Update joining year if provided
-    if (joiningYear !== undefined) {
-      const isClearing =
-        joiningYear === null ||
-        joiningYear === '' ||
-        (typeof joiningYear === 'string' && joiningYear.trim() === '');
 
+    if (joiningYear !== undefined) {
+      const isClearing = joiningYear === null || joiningYear === '' ||
+        (typeof joiningYear === 'string' && joiningYear.trim() === '');
       if (isClearing) {
         user.joiningYear = undefined;
         (user as any).joiningYearUpdatedAt = undefined;
-        user.markModified('joiningYearUpdatedAt');
-        // If joiningYear is removed, empId must be removed too.
         user.empId = undefined;
+        user.markModified('joiningYear');
+        user.markModified('joiningYearUpdatedAt');
         user.markModified('empId');
       } else {
-        const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : joiningYear;
-        if (yearNum && !isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
+        const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : Number(joiningYear);
+        if (!isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
           user.joiningYear = yearNum;
-          if (!previousJoiningYear) {
+          if (previousJoiningYear == null) {
             (user as any).joiningYearUpdatedAt = new Date();
             user.markModified('joiningYearUpdatedAt');
           }
         }
       }
     }
-    
-    // Always update weeklyOff - it should always be in the request body
-    // Process weeklyOff regardless of whether it's provided or not
+
     if (weeklyOff !== undefined) {
-      const filteredWeeklyOff = Array.isArray(weeklyOff)
-        ? weeklyOff.filter(day => day && typeof day === 'string' && day.trim())
+      user.weeklyOff = Array.isArray(weeklyOff)
+        ? weeklyOff.filter((d) => d && typeof d === 'string' && d.trim())
         : [];
-      user.weeklyOff = filteredWeeklyOff;
-      user.markModified('weeklyOff'); // Explicitly mark as modified for Mongoose
+      user.markModified('weeklyOff');
     }
-    
-    // Update clockInTime if provided (can be empty string to clear it, or "N/R" for no restrictions)
-    // Always process clockInTime if it's in the request body (even if empty string)
+
     if (clockInTime !== undefined) {
-      // Handle both empty string and null/undefined
       const timeValue = typeof clockInTime === 'string' ? clockInTime.trim() : '';
-      
       if (timeValue === 'N/R') {
-        // Special marker for "No Restrictions"
-        // Use updateOne to set this value directly, bypassing validation
         await User.updateOne(
           { _id: params.id },
-          { clockInTime: 'N/R' },
+          { $set: { clockInTime: 'N/R' } },
           { runValidators: false }
         );
-        // Reload user to get the updated clockInTime
-        const reloadedUser = await User.findById(params.id);
-        if (reloadedUser) {
-          Object.assign(user, { clockInTime: 'N/R' });
-        }
+        (user as any).clockInTime = 'N/R';
       } else if (timeValue !== '') {
-        // Validate time format (HH:mm)
-        const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-        if (!timeRegex.test(timeValue)) {
+        if (!CLOCK_IN_TIME_REGEX.test(timeValue)) {
           return NextResponse.json(
-            { error: 'Invalid clock-in time format. Please use HH:mm format (e.g., 09:30)' },
+            { error: 'Invalid clock-in time format. Use HH:mm (e.g. 09:30)' },
             { status: 400 }
           );
         }
         user.clockInTime = timeValue;
-        user.markModified('clockInTime'); // Explicitly mark as modified for Mongoose
+        user.markModified('clockInTime');
       } else {
-        // Clear clockInTime if empty string is provided
-        // Set to undefined and mark as modified
         user.clockInTime = undefined;
-        user.markModified('clockInTime'); // Explicitly mark as modified for Mongoose
+        user.markModified('clockInTime');
       }
     }
-    
-    const saveResult = await user.save();
-    
-    // Employee ID rule:
+
+    await user.save();
+
+    // Employee ID:
     // - When joiningYear is set, empId should be YYYYEMP-### using a GLOBAL sequence.
     // - If joiningYear changes later, update only the year prefix and keep the same ### sequence.
     if (joiningYear !== undefined && user.joiningYear) {
@@ -149,15 +130,11 @@ export async function PUT(
       }
     }
     
-    // Reload user to ensure all fields are properly saved
     const updatedUser = await User.findById(params.id)
       .select('_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt updatedAt')
       .lean();
 
-    return NextResponse.json({
-      message: 'User updated successfully',
-      user: updatedUser,
-    });
+    return NextResponse.json({ message: 'User updated successfully', user: updatedUser });
   } catch (error: any) {
     console.error('Update user error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
@@ -170,52 +147,40 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     const userRole = (session.user as any).role;
     if (userRole !== 'admin' && userRole !== 'hr') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
+    }
 
     await connectDB();
 
-    const user = await User.findById(params.id);
-
+    const user = await User.findById(params.id).select('role').lean();
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
     if (user.role === 'admin') {
       return NextResponse.json({ error: 'Cannot delete admin user' }, { status: 400 });
     }
 
     const userId = new mongoose.Types.ObjectId(params.id);
 
-    // Delete all related records for this user
     try {
-      // Delete attendance records
-      await Attendance.deleteMany({ userId });
-      
-      // Delete leave records
-      await Leave.deleteMany({ userId });
-      
-      // Delete penalty records
-      await Penalty.deleteMany({ userId });
-      
-      // Delete finance records
-      await Finance.deleteMany({ userId });
-      
-      // Finally, delete the user
-      await User.findByIdAndDelete(params.id);
+      await Promise.all([
+        Attendance.deleteMany({ userId }),
+        Leave.deleteMany({ userId }),
+        Penalty.deleteMany({ userId }),
+        Finance.deleteMany({ userId }),
+      ]);
     } catch (deleteError: any) {
-      console.error('Error deleting user and related records:', deleteError);
-      // If deletion of related records fails, still try to delete the user
-      // (MongoDB doesn't have foreign key constraints, so this should work)
-      await User.findByIdAndDelete(params.id);
+      console.error('Error deleting related records:', deleteError);
     }
+    await User.findByIdAndDelete(params.id);
 
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error: any) {

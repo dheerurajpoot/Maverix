@@ -24,42 +24,30 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const { searchParams } = new URL(request.url);
-    const minimal = searchParams.get('minimal') === 'true';
+    const minimal = request.nextUrl.searchParams.get('minimal') === 'true';
 
-    // Auto-normalize employee IDs only when the caller needs full employee data.
-    // This is an expensive routine; dropdowns/search screens should use `?minimal=true`.
     if (!minimal) {
       await ensureEmpIdsByJoiningYear();
     }
 
-    // Return all non-admin users (employee + hr) for admin/hr roles
     const users = await User.find({ role: { $ne: 'admin' } })
       .select(
         minimal
           ? '_id name email role profileImage'
           : '_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt bankName accountNumber ifscCode panCardImage aadharCardImage location panNumber aadharNumber'
       )
+      .sort({ name: 1 })
       .lean();
 
     const sanitizedUsers = minimal
       ? users
-      : // Safety: never expose empId if joiningYear is missing/invalid.
-        // (Prevents UI from showing empId after joiningYear was cleared, even if legacy data exists.)
-        (users as any[]).map((u) => {
-          const jy = u.joiningYear;
-          const validYear = typeof jy === 'number' && jy >= 1900 && jy <= 2100;
-          if (!validYear) {
-            return { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
-          }
-          return u;
+      : (users as any[]).map((u) => {
+          const validYear = typeof u.joiningYear === 'number' && u.joiningYear >= 1900 && u.joiningYear <= 2100;
+          return validYear ? u : { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
         });
 
     const response = NextResponse.json({ users: sanitizedUsers });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
     return response;
   } catch (error: any) {
     console.error('Get users error:', error);
@@ -82,71 +70,52 @@ export async function POST(request: NextRequest) {
 
     const { email, name, role, designation, weeklyOff, clockInTime } = await request.json();
 
-    if (!email || !name) {
-      return NextResponse.json(
-        { error: 'Email and name are required' },
-        { status: 400 }
-      );
+    if (!email?.trim() || !name?.trim()) {
+      return NextResponse.json({ error: 'Email and name are required' }, { status: 400 });
     }
 
-    // Prevent HR from setting roles - default to 'employee'
     const finalRole = userRole === 'hr' ? 'employee' : (role || 'employee');
-    
-    // Prevent HR from creating admin or hr users
     if (userRole === 'hr' && (finalRole === 'admin' || finalRole === 'hr')) {
       return NextResponse.json({ error: 'HR cannot create admin or HR users' }, { status: 403 });
     }
 
     await connectDB();
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
       return NextResponse.json({ error: 'User already exists' }, { status: 400 });
     }
 
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const approved = finalRole === 'admin' || finalRole === 'hr';
 
-    // Explicitly set approved status based on role
-    let approvedStatus = false;
-    if (finalRole === 'admin' || finalRole === 'hr') {
-      approvedStatus = true; // Auto-approve admin and HR
-    } else {
-      approvedStatus = false; // Employees need admin approval
-    }
-
-    // Validate clockInTime if provided (allow "N/R" as special marker)
-    let finalClockInTime = undefined;
-    if (clockInTime && clockInTime.trim() !== '') {
-      const trimmedTime = clockInTime.trim();
-      if (trimmedTime === 'N/R') {
-        // Special marker for "No Restrictions"
+    let finalClockInTime: string | undefined;
+    if (clockInTime != null && String(clockInTime).trim() !== '') {
+      const trimmed = String(clockInTime).trim();
+      if (trimmed === 'N/R') {
         finalClockInTime = 'N/R';
+      } else if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(trimmed)) {
+        return NextResponse.json(
+          { error: 'Invalid clock-in time format. Use HH:mm (e.g. 09:30)' },
+          { status: 400 }
+        );
       } else {
-        // Validate time format (HH:mm)
-        const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-        if (!timeRegex.test(trimmedTime)) {
-          return NextResponse.json(
-            { error: 'Invalid clock-in time format. Please use HH:mm format (e.g., 09:30)' },
-            { status: 400 }
-          );
-        }
-        finalClockInTime = trimmedTime;
+        finalClockInTime = trimmed;
       }
     }
 
     const user = new User({
-      email: email.toLowerCase(),
-      name,
+      email: email.toLowerCase().trim(),
+      name: name.trim(),
       role: finalRole,
-      designation: designation || undefined,
-      weeklyOff: Array.isArray(weeklyOff) ? weeklyOff.filter(day => day && day.trim()) : [],
+      designation: designation?.trim() || undefined,
+      weeklyOff: Array.isArray(weeklyOff) ? weeklyOff.filter((d) => d && String(d).trim()) : [],
       clockInTime: finalClockInTime,
       verificationToken,
       verificationTokenExpiry,
       emailVerified: false,
-      approved: approvedStatus, // Explicitly set approval status
+      approved,
     });
 
     await user.save();
@@ -162,7 +131,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         designation: user.designation,
         emailVerified: user.emailVerified,
-        weeklyOff: user.weeklyOff || [],
+        weeklyOff: user.weeklyOff ?? [],
         clockInTime: user.clockInTime,
       },
     });

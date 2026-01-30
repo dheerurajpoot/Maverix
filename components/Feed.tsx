@@ -58,7 +58,6 @@ export default function Feed() {
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [mentionStartPos, setMentionStartPos] = useState(0);
 	const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-	const [profileImage, setProfileImage] = useState<string | null>(null);
 	const [viewingPost, setViewingPost] = useState<Post | null>(null);
 	const [showViewModal, setShowViewModal] = useState(false);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -88,25 +87,6 @@ export default function Feed() {
 			setLoading(false);
 		}
 	}, []);
-
-	// Fetch profileImage separately to avoid HTTP 431 errors
-	useEffect(() => {
-		const fetchProfileImage = async () => {
-			try {
-				const res = await fetch("/api/profile/image");
-				const data = await res.json();
-				if (res.ok && data.profileImage) {
-					setProfileImage(data.profileImage);
-				}
-			} catch (err) {
-				console.error("Error fetching profile image:", err);
-			}
-		};
-
-		if (session) {
-			fetchProfileImage();
-		}
-	}, [session]);
 
 	useEffect(() => {
 		fetchUsers();
@@ -444,17 +424,6 @@ export default function Feed() {
 		return parts.length > 0 ? parts : [content];
 	};
 
-	// if (loading) {
-	// 	return (
-	// 		<div className='bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-8 text-center'>
-	// 			<LoadingDots size='lg' className='mb-3' />
-	// 			<p className='text-sm text-gray-500 font-secondary'>
-	// 				Loading feed...
-	// 			</p>
-	// 		</div>
-	// 	);
-	// }
-
 	return (
 		<>
 			<div className='space-y-4'>
@@ -467,7 +436,7 @@ export default function Feed() {
 						<div className='relative'>
 							<UserAvatar
 								name={session?.user?.name || ""}
-								image={profileImage || undefined}
+								image={session?.user?.profileImage || ""}
 								size='md'
 								className='ring-2 ring-primary/20'
 							/>

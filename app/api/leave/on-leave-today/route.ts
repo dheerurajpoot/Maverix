@@ -28,50 +28,22 @@ export async function GET(request: NextRequest) {
     // 2. Exclude allotted leaves (where allottedBy exists) - these are just balance allocations, not actual leave applications
     // 3. Exclude penalty leaves (leaves deducted for late clock-in)
     const leavesOnLeaveToday = await Leave.find({
-      status: 'approved', // Only approved status
-      allottedBy: { $exists: false }, // Exclude allotted leaves - only actual leave requests
+      status: 'approved',
+      allottedBy: { $exists: false },
       startDate: { $lte: endOfToday },
       endDate: { $gte: today },
-      reason: { $not: { $regex: /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct|leave.*deduction/i } }, // Exclude penalty-related leaves and deduction history
+      reason: { $not: { $regex: /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct|leave.*deduction/i } },
     })
-      .select('userId status startDate endDate allottedBy reason') // Include fields for verification
+      .select('userId')
       .lean();
 
-    // Triple-check: filter out any non-approved leaves, allotted leaves, penalty leaves, and verify dates
-    const approvedLeavesOnly = leavesOnLeaveToday.filter((leave: any) => {
-      // Ensure status is exactly 'approved' (string comparison)
-      if (leave.status !== 'approved') {
-        return false;
-      }
-      
-      // Ensure this is NOT an allotted leave (allottedBy should not exist)
-      if (leave.allottedBy) {
-        return false;
-      }
-      
-      // Exclude penalty-related leaves (leaves deducted for late clock-in penalties)
-      if (leave.reason && /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct/i.test(leave.reason)) {
-        return false;
-      }
-      
-      // Verify dates are valid and include today
-      const startDate = new Date(leave.startDate);
-      const endDate = new Date(leave.endDate);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-      
-      return startDate <= endOfToday && endDate >= today;
-    });
-
-    // Extract unique user IDs from approved leaves only
     const userIdsOnLeave = Array.from(
-      new Set(approvedLeavesOnly.map((leave: any) => leave.userId.toString()))
+      new Set(leavesOnLeaveToday.map((l: any) => (l.userId?._id || l.userId)?.toString()).filter(Boolean))
     );
 
-    return NextResponse.json({ 
-      userIdsOnLeave,
-      count: userIdsOnLeave.length 
-    });
+    const response = NextResponse.json({ userIdsOnLeave, count: userIdsOnLeave.length });
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
+    return response;
   } catch (error: any) {
     console.error('Get on leave today error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });

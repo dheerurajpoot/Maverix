@@ -24,72 +24,37 @@ export async function GET() {
 
     await connectDB();
 
-    // Get today's date range
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const endOfToday = new Date(today);
     endOfToday.setHours(23, 59, 59, 999);
-    const todayDayName = format(today, 'EEEE'); // e.g., "Monday"
+    const todayDayName = format(today, 'EEEE');
 
-    // Get all non-admin users (employees + HR)
-    const allEmployees = await User.find({ 
-      role: { $ne: 'admin' },
-      emailVerified: true,
-      password: { $exists: true, $ne: null }
-    }).select('_id weeklyOff role').lean();
-    
-    // Separate counts for employees and HR
-    const employeeCount = allEmployees.filter((emp: any) => emp.role === 'employee').length;
-    const hrCount = allEmployees.filter((emp: any) => emp.role === 'hr').length;
-
-    // Get employees on leave today - any approved leave that covers today
-    // A leave covers today if: startDate <= endOfToday AND endDate >= today
-    // Only include actual leave requests (exclude allotted leaves and penalty-related leaves)
-    const leavesToday = await Leave.find({
-      status: 'approved',
-      allottedBy: { $exists: false }, // Exclude allotted leaves - only actual leave requests
-      $or: [
-        { reason: { $exists: false } }, // No reason field
-        { reason: null }, // Reason is null
-        { reason: { $not: { $regex: /penalty|late.*clock.*in|exceeded.*max.*late|auto.*deduct/i } } } // Reason doesn't match penalty pattern
-      ],
-      startDate: { $lte: endOfToday }, // Leave starts on or before end of today
-      endDate: { $gte: today }, // Leave ends on or after start of today
-    }).select('userId reason').lean();
-    
-    // Additional client-side filter to ensure penalty leaves are excluded
-    const filteredLeaves = leavesToday.filter((leave: any) => {
-      if (leave.reason && /penalty|late.*clock.*in|exceeded.*max.*late|auto.*deduct/i.test(leave.reason)) {
-        return false;
-      }
-      return true;
-    });
-
-    // Get distinct user IDs who are on leave today
-    const userIdsOnLeave = new Set(
-      filteredLeaves.map((leave: any) => {
-        const userId = typeof leave.userId === 'object' && leave.userId?._id 
-          ? leave.userId._id.toString() 
-          : leave.userId.toString();
-        return userId;
-      })
-    );
-    const onLeaveCount = userIdsOnLeave.size;
-
-    // Count employees with weekly off today
-    const weeklyOffCount = allEmployees.filter((emp: any) => {
-      const weeklyOff = emp.weeklyOff || [];
-      return Array.isArray(weeklyOff) && weeklyOff.includes(todayDayName);
-    }).length;
-
-    const [totalEmployees, pendingLeaves, clockedInToday] = await Promise.all([
-      allEmployees.length,
+    const [allEmployees, leavesToday, pendingLeaves, clockedInUserIds] = await Promise.all([
+      User.find({
+        role: { $ne: 'admin' },
+        emailVerified: true,
+        password: { $exists: true, $ne: null },
+      }).select('_id weeklyOff role').lean(),
+      Leave.find({
+        status: 'approved',
+        allottedBy: { $exists: false },
+        reason: { $not: { $regex: /penalty|late.*clock.*in|exceeded.*max.*late|auto.*deduct/i } },
+        startDate: { $lte: endOfToday },
+        endDate: { $gte: today },
+      }).select('userId').lean(),
       Leave.countDocuments({ status: 'pending' }),
-      // Count distinct employees who have clocked in today
-      Attendance.distinct('userId', {
-        clockIn: { $gte: today, $lte: endOfToday }
-      }).then(users => users.length),
+      Attendance.distinct('userId', { clockIn: { $gte: today, $lte: endOfToday } }),
     ]);
+
+    const totalEmployees = allEmployees.length;
+    const employeeCount = allEmployees.filter((e: any) => e.role === 'employee').length;
+    const hrCount = allEmployees.filter((e: any) => e.role === 'hr').length;
+    const onLeaveCount = new Set(leavesToday.map((l: any) => (l.userId?._id || l.userId)?.toString())).size;
+    const weeklyOffCount = allEmployees.filter((e: any) =>
+      Array.isArray(e.weeklyOff) && e.weeklyOff.includes(todayDayName)
+    ).length;
+    const clockedInToday = clockedInUserIds.length;
 
     const response = NextResponse.json({
       totalEmployees,

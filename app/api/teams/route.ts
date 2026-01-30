@@ -26,9 +26,12 @@ export async function GET(request: NextRequest) {
       .populate('leader', 'name email profileImage mobileNumber')
       .populate('members', 'name email profileImage mobileNumber')
       .populate('createdBy', 'name email profileImage')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    return NextResponse.json({ teams });
+    const response = NextResponse.json({ teams });
+    response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600');
+    return response;
   } catch (error: any) {
     console.error('Get teams error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });

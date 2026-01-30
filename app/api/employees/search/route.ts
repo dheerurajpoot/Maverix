@@ -9,39 +9,36 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') || '';
-
-    if (!query || query.trim().length < 2) {
+    const q = request.nextUrl.searchParams.get('q')?.trim() || '';
+    if (q.length < 2) {
       return NextResponse.json({ employees: [] });
     }
 
     await connectDB();
 
-    const searchRegex = new RegExp(query, 'i');
-
+    const regex = new RegExp(q, 'i');
     const employees = await User.find({
       role: 'employee',
       $or: [
-        { name: searchRegex },
-        { email: searchRegex },
-        { mobileNumber: searchRegex },
-        { empId: searchRegex },
+        { name: regex },
+        { email: regex },
+        { mobileNumber: regex },
+        { empId: regex },
       ],
     })
       .select('_id name email mobileNumber profileImage role dateOfBirth designation empId')
       .limit(20)
       .lean();
 
-    return NextResponse.json({ employees });
+    const res = NextResponse.json({ employees });
+    res.headers.set('Cache-Control', 'private, s-maxage=10, stale-while-revalidate=30');
+    return res;
   } catch (error: any) {
-    console.error('Search employees error:', error);
+    console.error('Employee search error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
-

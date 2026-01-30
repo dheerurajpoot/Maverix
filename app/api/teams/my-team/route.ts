@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
     })
       .populate('leader', 'name email profileImage mobileNumber designation')
       .populate('members', 'name email profileImage mobileNumber designation')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     const response = NextResponse.json({ teams });
     // Teams change rarely - cache for 5 minutes

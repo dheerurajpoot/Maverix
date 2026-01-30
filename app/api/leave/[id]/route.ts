@@ -3,11 +3,17 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
+import LeaveType from '@/models/LeaveType';
 import mongoose from 'mongoose';
 import { sendLeaveStatusNotificationToEmployee } from '@/utils/sendEmail';
 import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
+
+function leaveUserId(leave: any): string {
+  const uid = leave.userId;
+  return (typeof uid === 'object' && uid?._id ? uid._id : uid)?.toString() ?? '';
+}
 
 export async function PUT(
   request: NextRequest,
@@ -45,13 +51,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Leave not found' }, { status: 404 });
     }
 
-    // Prevent HR from approving their own leaves - HR leaves must go to admin for approval
     const userId = (session.user as any).id;
-    const leaveUserId = typeof leave.userId === 'object' && leave.userId?._id 
-      ? leave.userId._id.toString() 
-      : leave.userId.toString();
-    
-    if (role === 'hr' && leaveUserId === userId) {
+    if (role === 'hr' && leaveUserId(leave) === userId) {
       return NextResponse.json({ 
         error: 'HR cannot approve their own leave requests. Please contact admin for approval.' 
       }, { status: 403 });
@@ -60,25 +61,19 @@ export async function PUT(
     // Store previous status BEFORE updating
     const previousStatus = leave.status;
 
-    // Handle balance deduction/restoration BEFORE updating status
-    // This must be done before the status change to calculate correctly
     if (!leave.allottedBy) {
-      // This is a leave request (not an allotted leave)
-      const allottedLeave = await Leave.findOne({
-        userId: leave.userId,
-        leaveType: leave.leaveType,
-        allottedBy: { $exists: true, $ne: null },
-      });
+      const [allottedLeave, leaveTypeDoc] = await Promise.all([
+        Leave.findOne({
+          userId: leave.userId,
+          leaveType: leave.leaveType,
+          allottedBy: { $exists: true, $ne: null },
+        }),
+        LeaveType.findById(leave.leaveType).lean(),
+      ]);
+      const leaveTypeName = leaveTypeDoc?.name?.toLowerCase() ?? '';
+      const isShortDayLeaveType = /shortday|short-day|short\s*day/.test(leaveTypeName);
 
       if (allottedLeave) {
-        // Check if this is a shortday leave type
-        const LeaveType = (await import('@/models/LeaveType')).default;
-        const leaveTypeDoc = await LeaveType.findById(leave.leaveType);
-        const leaveTypeName = leaveTypeDoc?.name?.toLowerCase() || '';
-        const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                     leaveTypeName.includes('short-day') || 
-                                     leaveTypeName.includes('short day');
-
         if (isShortDayLeaveType) {
           // Handle shortday leave types with hours/minutes
           const requestedHours = leave.hours || 0;
@@ -86,22 +81,19 @@ export async function PUT(
           const requestedTotalMinutes = requestedHours * 60 + requestedMinutes;
 
           if (status === 'approved' && previousStatus !== 'approved') {
-            // Deduct from balance when approving
             const approvedRequests = await Leave.find({
               userId: leave.userId,
               leaveType: leave.leaveType,
               allottedBy: { $exists: false },
               status: 'approved',
               _id: { $ne: leave._id },
-            }).lean();
-
-            // Calculate total used minutes
-            let totalUsedMinutes = 0;
-            approvedRequests.forEach((req: any) => {
-              const reqHours = req.hours || 0;
-              const reqMinutes = req.minutes || 0;
-              totalUsedMinutes += reqHours * 60 + reqMinutes;
-            });
+            })
+              .select('hours minutes')
+              .lean();
+            const totalUsedMinutes = approvedRequests.reduce(
+              (sum: number, r: any) => sum + (r.hours || 0) * 60 + (r.minutes || 0),
+              0
+            );
 
             // Calculate remaining
             const totalAllottedMinutes = (allottedLeave.hours || 0) * 60 + (allottedLeave.minutes || 0);
@@ -130,22 +122,19 @@ export async function PUT(
             });
             await deductionHistory.save();
           } else if (status === 'rejected' && previousStatus === 'approved') {
-            // Restore balance if rejecting a previously approved leave
             const approvedRequests = await Leave.find({
               userId: leave.userId,
               leaveType: leave.leaveType,
               allottedBy: { $exists: false },
               status: 'approved',
               _id: { $ne: leave._id },
-            }).lean();
-
-            // Calculate total used minutes (excluding this leave)
-            let totalUsedMinutes = 0;
-            approvedRequests.forEach((req: any) => {
-              const reqHours = req.hours || 0;
-              const reqMinutes = req.minutes || 0;
-              totalUsedMinutes += reqHours * 60 + reqMinutes;
-            });
+            })
+              .select('hours minutes')
+              .lean();
+            const totalUsedMinutes = approvedRequests.reduce(
+              (sum: number, r: any) => sum + (r.hours || 0) * 60 + (r.minutes || 0),
+              0
+            );
 
             // Calculate remaining
             const totalAllottedMinutes = (allottedLeave.hours || 0) * 60 + (allottedLeave.minutes || 0);
@@ -161,16 +150,16 @@ export async function PUT(
           const requestedDays = leave.days || 0;
 
           if (status === 'approved' && previousStatus !== 'approved') {
-            // Deduct from balance when approving
             const approvedRequests = await Leave.find({
               userId: leave.userId,
               leaveType: leave.leaveType,
               allottedBy: { $exists: false },
               status: 'approved',
               _id: { $ne: leave._id },
-            }).lean();
-
-            const totalUsed = approvedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+            })
+              .select('days')
+              .lean();
+            const totalUsed = approvedRequests.reduce((sum: number, r: any) => sum + (r.days || 0), 0);
             const actualRemainingDays = Math.max(0, (allottedLeave.days || 0) - totalUsed);
 
             // Update remainingDays in allotted leave
@@ -193,16 +182,16 @@ export async function PUT(
             });
             await deductionHistory.save();
           } else if (status === 'rejected' && previousStatus === 'approved') {
-            // Restore balance if rejecting a previously approved leave
             const approvedRequests = await Leave.find({
               userId: leave.userId,
               leaveType: leave.leaveType,
               allottedBy: { $exists: false },
               status: 'approved',
               _id: { $ne: leave._id },
-            }).lean();
-
-            const totalUsed = approvedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+            })
+              .select('days')
+              .lean();
+            const totalUsed = approvedRequests.reduce((sum: number, r: any) => sum + (r.days || 0), 0);
             allottedLeave.remainingDays = Math.max(0, (allottedLeave.days || 0) - totalUsed);
             await allottedLeave.save();
           }
@@ -210,21 +199,13 @@ export async function PUT(
       }
     }
 
-    // Prepare update object
     const updateData: any = {
-      status: status,
+      status,
       approvedBy: (session.user as any).id,
       approvedAt: new Date(),
+      ...(status === 'rejected' && rejectionReason ? { rejectionReason } : status === 'approved' ? { rejectionReason: null } : {}),
     };
 
-    if (status === 'rejected' && rejectionReason) {
-      updateData.rejectionReason = rejectionReason;
-    } else if (status === 'approved') {
-      // Clear rejection reason if approving
-      updateData.rejectionReason = null;
-    }
-
-    // Use findByIdAndUpdate for reliable status update
     const updatedLeave = await Leave.findByIdAndUpdate(
       params.id,
       updateData,
@@ -239,60 +220,37 @@ export async function PUT(
       return NextResponse.json({ error: 'Leave not found after update' }, { status: 404 });
     }
 
-    // Verify the status was actually updated
-    if (updatedLeave.status !== status) {
-      console.error(`Status update failed: Expected ${status}, got ${updatedLeave.status}. Retrying...`);
-      // Retry with explicit status update
-      const retryUpdate = await Leave.findByIdAndUpdate(
-        params.id,
-        { $set: { status: status } },
-        { new: true, runValidators: true }
-      );
-      if (retryUpdate && retryUpdate.status !== status) {
-        return NextResponse.json({ 
-          error: `Failed to update leave status. Expected ${status} but got ${retryUpdate.status}` 
-        }, { status: 500 });
-      }
-    }
-    
-    // Populate the leave with related data before returning
+    // Populate for response
     await updatedLeave.populate('userId', 'name email profileImage');
     await updatedLeave.populate('leaveType', 'name description');
     if (updatedLeave.approvedBy) {
       await updatedLeave.populate('approvedBy', 'name email');
     }
 
-    // Send email notification to employee about approval/rejection
     try {
-      const user = typeof updatedLeave.userId === 'object' && updatedLeave.userId && 'email' in updatedLeave.userId ? updatedLeave.userId as any : null;
-      const leaveType = typeof updatedLeave.leaveType === 'object' && updatedLeave.leaveType && 'name' in updatedLeave.leaveType ? updatedLeave.leaveType as any : null;
-      const approver = typeof updatedLeave.approvedBy === 'object' && updatedLeave.approvedBy && 'name' in updatedLeave.approvedBy ? updatedLeave.approvedBy as any : null;
-
-      if (user && leaveType && 'email' in user && user.email) {
-        // Check if this is a shortday leave type
-        const leaveTypeName = (leaveType.name as string)?.toLowerCase() || '';
-        const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                   leaveTypeName.includes('short-day') || 
-                                   leaveTypeName.includes('short day');
-        
+      const user = updatedLeave.userId as any;
+      const leaveType = updatedLeave.leaveType as any;
+      const approver = updatedLeave.approvedBy as any;
+      if (user?.email && leaveType?.name) {
+        const ltName = String(leaveType.name).toLowerCase();
+        const isShortDay = /shortday|short-day|short\s*day/.test(ltName);
         await sendLeaveStatusNotificationToEmployee({
-          employeeName: (user.name as string) || 'Employee',
-          employeeEmail: user.email as string,
-          leaveType: (leaveType.name as string) || 'Leave',
+          employeeName: user.name || 'Employee',
+          employeeEmail: user.email,
+          leaveType: leaveType.name || 'Leave',
           days: updatedLeave.days || 0,
           startDate: format(new Date(updatedLeave.startDate), 'MMM dd, yyyy'),
           endDate: format(new Date(updatedLeave.endDate), 'MMM dd, yyyy'),
           status: status as 'approved' | 'rejected',
           rejectionReason: status === 'rejected' ? updatedLeave.rejectionReason : undefined,
-          approvedBy: approver ? (approver.name as string) : undefined,
-          halfDayType: (updatedLeave as any).halfDayType, // Include half-day type if present
-          shortDayTime: (updatedLeave as any).shortDayTime, // Include short-day time if present
-          hours: isShortDayLeaveType ? ((updatedLeave as any).hours || 0) : undefined, // Include hours for shortday leaves
-          minutes: isShortDayLeaveType ? ((updatedLeave as any).minutes || 0) : undefined, // Include minutes for shortday leaves
+          approvedBy: approver?.name,
+          halfDayType: (updatedLeave as any).halfDayType,
+          shortDayTime: (updatedLeave as any).shortDayTime,
+          hours: isShortDay ? ((updatedLeave as any).hours ?? 0) : undefined,
+          minutes: isShortDay ? ((updatedLeave as any).minutes ?? 0) : undefined,
         });
       }
     } catch (emailError) {
-      // Log email error but don't fail the request
       console.error('Error sending leave status notification email:', emailError);
     }
 
@@ -333,17 +291,10 @@ export async function DELETE(
     const role = (session.user as any).role;
     const userId = (session.user as any).id;
 
-    // Employees can only delete their own pending leave requests
-    // Admin/HR can delete any leave request
     if (role === 'employee') {
-      const leaveUserId = typeof leave.userId === 'object' && leave.userId?._id 
-        ? leave.userId._id.toString() 
-        : leave.userId.toString();
-      
-      if (leaveUserId !== userId) {
+      if (leaveUserId(leave) !== userId) {
         return NextResponse.json({ error: 'You can only delete your own leave requests' }, { status: 403 });
       }
-
       if (leave.status !== 'pending') {
         return NextResponse.json({ error: 'You can only delete pending leave requests' }, { status: 400 });
       }
@@ -394,7 +345,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Cannot edit non-allotted leave' }, { status: 400 });
     }
 
-    // If leaveType is being changed, check for duplicates
     if (leaveType && leaveType !== leave.leaveType.toString()) {
       const leaveTypeId = new mongoose.Types.ObjectId(leaveType);
       const existingLeave = await Leave.findOne({
@@ -403,16 +353,13 @@ export async function PATCH(
         allottedBy: { $exists: true, $ne: null },
         _id: { $ne: leave._id },
       });
-
       if (existingLeave) {
-        const LeaveType = (await import('@/models/LeaveType')).default;
-        const leaveTypeDoc = await LeaveType.findById(leaveTypeId);
+        const leaveTypeDoc = await LeaveType.findById(leaveTypeId).select('name').lean();
         return NextResponse.json(
-          { error: `Already allotted ${leaveTypeDoc?.name || 'this leave type'}` },
+          { error: `Already allotted ${leaveTypeDoc?.name ?? 'this leave type'}` },
           { status: 400 }
         );
       }
-
       leave.leaveType = leaveTypeId;
     }
 

@@ -37,52 +37,39 @@ export async function GET(request: NextRequest) {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    // Find teams where user is either a leader or a member
     const teams = await Team.find({
-      $or: [
-        { leader: userObjectId },
-        { members: userObjectId },
-      ],
+      $or: [{ leader: userObjectId }, { members: userObjectId }],
     })
       .populate('leader', 'name email profileImage')
       .populate('members', 'name email profileImage')
       .lean();
 
     if (teams.length === 0) {
-      return NextResponse.json({ teamMembersOnLeave: [] });
+      return NextResponse.json({ teamMembersOnLeave: [], count: 0 });
     }
 
-    // Get all team member IDs (leader + members) from all teams
-    const teamMemberIds: mongoose.Types.ObjectId[] = [];
-    teams.forEach((team: any) => {
-      if (team.leader && team.leader._id.toString() !== userId) {
-        teamMemberIds.push(new mongoose.Types.ObjectId(team.leader._id));
+    const teamMemberIdSet = new Set<string>();
+    for (const team of teams as any[]) {
+      if (team.leader?._id?.toString() && team.leader._id.toString() !== userId) {
+        teamMemberIdSet.add(team.leader._id.toString());
       }
-      if (team.members && Array.isArray(team.members)) {
-        team.members.forEach((member: any) => {
-          const memberId = typeof member === 'object' && member._id 
-            ? member._id.toString() 
-            : member.toString();
-          if (memberId !== userId) {
-            teamMemberIds.push(new mongoose.Types.ObjectId(memberId));
-          }
-        });
+      if (Array.isArray(team.members)) {
+        for (const member of team.members) {
+          const id = (member?._id ?? member)?.toString();
+          if (id && id !== userId) teamMemberIdSet.add(id);
+        }
       }
-    });
-
+    }
+    const teamMemberIds = [...teamMemberIdSet].map((id) => new mongoose.Types.ObjectId(id));
     if (teamMemberIds.length === 0) {
-      return NextResponse.json({ teamMembersOnLeave: [] });
+      return NextResponse.json({ teamMembersOnLeave: [], count: 0 });
     }
 
-    // Find leaves that overlap with the requested date range
-    // A leave overlaps if: (leave.startDate <= end) AND (leave.endDate >= start)
-    // IMPORTANT: Exclude allotted leaves (where allottedBy exists) - these are balance allocations, not actual leave requests
     const overlappingLeaves = await Leave.find({
       userId: { $in: teamMemberIds },
       status: { $in: ['pending', 'approved'] },
-      allottedBy: { $exists: false }, // Exclude allotted leaves - only show actual leave requests
-      reason: { $not: { $regex: /leave.*deduction/i } }, // Exclude deduction history entries
-      // Leave starts before or on the end date and ends on or after the start date
+      allottedBy: { $exists: false },
+      reason: { $not: { $regex: /leave.*deduction/i } },
       startDate: { $lte: end },
       endDate: { $gte: start },
     })
@@ -90,44 +77,37 @@ export async function GET(request: NextRequest) {
       .populate('leaveType', 'name')
       .lean();
 
-    // Group by user and format the response
-    const membersOnLeaveMap = new Map();
-    
-    overlappingLeaves.forEach((leave: any) => {
-      const userId = typeof leave.userId === 'object' && leave.userId?._id 
-        ? leave.userId._id.toString() 
-        : leave.userId.toString();
-      
-      if (!membersOnLeaveMap.has(userId)) {
-        const user = typeof leave.userId === 'object' ? leave.userId : null;
-        membersOnLeaveMap.set(userId, {
-          _id: userId,
-          name: user?.name || 'Unknown',
-          email: user?.email || '',
+    const membersOnLeaveMap = new Map<string, any>();
+    for (const leave of overlappingLeaves as any[]) {
+      const uid = (leave.userId?._id ?? leave.userId)?.toString();
+      if (!uid) continue;
+      if (!membersOnLeaveMap.has(uid)) {
+        const user = leave.userId;
+        membersOnLeaveMap.set(uid, {
+          _id: uid,
+          name: user?.name ?? 'Unknown',
+          email: user?.email ?? '',
           profileImage: user?.profileImage,
           leaves: [],
         });
       }
-
-      const memberData = membersOnLeaveMap.get(userId);
-      memberData.leaves.push({
-        leaveType: typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType,
+      membersOnLeaveMap.get(uid).leaves.push({
+        leaveType: leave.leaveType?.name ?? leave.leaveType,
         startDate: leave.startDate,
         endDate: leave.endDate,
         status: leave.status,
-        halfDayType: leave.halfDayType, // Include half-day type if present
-        days: leave.days, // Include days to check if it's a half-day (0.5)
+        halfDayType: leave.halfDayType,
+        days: leave.days,
       });
-    });
+    }
 
-    const teamMembersOnLeave = Array.from(membersOnLeaveMap.values())
-      // Filter out members who have no leaves (shouldn't happen, but safety check)
-      .filter((member: any) => member.leaves && member.leaves.length > 0);
+    const teamMembersOnLeave = Array.from(membersOnLeaveMap.values()).filter(
+      (m: any) => m.leaves?.length > 0
+    );
 
-    return NextResponse.json({ 
-      teamMembersOnLeave,
-      count: teamMembersOnLeave.length 
-    });
+    const response = NextResponse.json({ teamMembersOnLeave, count: teamMembersOnLeave.length });
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
+    return response;
   } catch (error: any) {
     console.error('Get team members on leave error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });

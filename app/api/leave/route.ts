@@ -49,87 +49,60 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Additional filter to exclude penalty-related leaves
-    const filteredLeaves = leaves.filter((leave: any) => {
-      if (leave.reason && /penalty|late.*clock.*in|exceeded.*max.*late/i.test(leave.reason)) {
-        return false;
-      }
-      return true;
-    });
+    const filteredLeaves = leaves.filter((leave: any) =>
+      !leave.reason || !/penalty|late.*clock.*in|exceeded.*max.*late/i.test(leave.reason)
+    );
 
-    // For allotted leaves, always recalculate remainingDays to ensure it includes penalty deductions
-    // This applies to all roles to ensure accurate leave balances are displayed
-    for (const leave of filteredLeaves) {
-      if (leave.allottedBy) {
-        // Get the actual ObjectId (handle both populated and non-populated cases)
-        const userId = typeof leave.userId === 'object' && leave.userId?._id 
-          ? leave.userId._id 
-          : leave.userId;
-        const leaveTypeId = typeof leave.leaveType === 'object' && leave.leaveType?._id 
-          ? leave.leaveType._id 
-          : leave.leaveType;
+    const allottedLeaves = filteredLeaves.filter((l: any) => l.allottedBy);
+    if (allottedLeaves.length > 0) {
+      const leaveTypeIds = [...new Set(allottedLeaves.map((l: any) =>
+        (typeof l.leaveType === 'object' && l.leaveType?._id ? l.leaveType._id : l.leaveType)?.toString()
+      ).filter(Boolean))];
+      const leaveTypesList = await LeaveType.find({ _id: { $in: leaveTypeIds.map((id: string) => new mongoose.Types.ObjectId(id)) } }).lean();
+      const leaveTypeMap = new Map(leaveTypesList.map((lt: any) => [lt._id.toString(), lt]));
 
-        // Check if this is a shortday leave type
-        const LeaveType = (await import('@/models/LeaveType')).default;
-        const leaveTypeDoc = await LeaveType.findById(leaveTypeId);
+      for (const leave of allottedLeaves) {
+        const uid = typeof leave.userId === 'object' && leave.userId?._id ? leave.userId._id : leave.userId;
+        const ltId = typeof leave.leaveType === 'object' && leave.leaveType?._id ? leave.leaveType._id : leave.leaveType;
+        const leaveTypeDoc = leaveTypeMap.get(ltId?.toString());
         const leaveTypeName = leaveTypeDoc?.name?.toLowerCase() || '';
-        const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                     leaveTypeName.includes('short-day') || 
-                                     leaveTypeName.includes('short day');
+        const isShortDayLeaveType = /shortday|short-day|short day/.test(leaveTypeName);
 
         const approvedRequests = await Leave.find({
-          userId: new mongoose.Types.ObjectId(userId),
-          leaveType: new mongoose.Types.ObjectId(leaveTypeId),
+          userId: new mongoose.Types.ObjectId(uid),
+          leaveType: new mongoose.Types.ObjectId(ltId),
           status: 'approved',
           allottedBy: { $exists: false },
-        }).lean();
+        }).select(isShortDayLeaveType ? 'hours minutes' : 'days').lean();
 
         if (isShortDayLeaveType) {
-          // Calculate remaining hours/minutes for shortday leave types
-          let totalUsedMinutes = 0;
-          approvedRequests.forEach((req: any) => {
-            const reqHours = req.hours || 0;
-            const reqMinutes = req.minutes || 0;
-            totalUsedMinutes += reqHours * 60 + reqMinutes;
-          });
-
-          const totalAllottedMinutes = (leave.hours || 0) * 60 + (leave.minutes || 0);
-          const calculatedRemainingMinutes = Math.max(0, totalAllottedMinutes - totalUsedMinutes);
-          
-          // Update remaining hours and minutes
-          leave.remainingHours = Math.floor(calculatedRemainingMinutes / 60);
-          leave.remainingMinutes = calculatedRemainingMinutes % 60;
-
-          // Update in database
-          await Leave.findByIdAndUpdate(leave._id, {
-            remainingHours: leave.remainingHours,
-            remainingMinutes: leave.remainingMinutes,
-          });
+          const totalUsedMinutes = approvedRequests.reduce(
+            (sum: number, r: any) => sum + (r.hours || 0) * 60 + (r.minutes || 0),
+            0
+          );
+          const totalAllotted = (leave.hours || 0) * 60 + (leave.minutes || 0);
+          const remaining = Math.max(0, totalAllotted - totalUsedMinutes);
+          leave.remainingHours = Math.floor(remaining / 60);
+          leave.remainingMinutes = remaining % 60;
+          await Leave.updateOne(
+            { _id: leave._id },
+            { $set: { remainingHours: leave.remainingHours, remainingMinutes: leave.remainingMinutes } }
+          );
         } else {
-          // Calculate remaining days for regular leave types
-          const totalUsed = approvedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+          const totalUsed = approvedRequests.reduce((sum: number, r: any) => sum + (r.days || 0), 0);
           const calculatedRemainingDays = Math.max(0, (leave.days || 0) - totalUsed);
-          
-          // Always update remainingDays to ensure it reflects current state including penalties
           leave.remainingDays = calculatedRemainingDays;
-
-          // Update in database
-          await Leave.findByIdAndUpdate(leave._id, { remainingDays: calculatedRemainingDays });
+          await Leave.updateOne({ _id: leave._id }, { $set: { remainingDays: calculatedRemainingDays } });
         }
       }
     }
 
     const response = NextResponse.json({ leaves: filteredLeaves });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
     return response;
   } catch (error: any) {
     console.error('Get leaves error:', error);
-    const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    return errorResponse;
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
 

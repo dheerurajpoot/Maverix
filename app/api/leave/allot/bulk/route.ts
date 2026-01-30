@@ -3,18 +3,20 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
+import LeaveType from '@/models/LeaveType';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
+const isShortDayLeaveType = (name?: string) =>
+  /shortday|short-day|short\s*day/.test((name ?? '').toLowerCase());
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     const role = (session.user as any).role;
     if (role !== 'admin' && role !== 'hr') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -24,62 +26,39 @@ export async function POST(request: NextRequest) {
     const allottedBy = (session.user as any).id;
 
     if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
-      return NextResponse.json(
-        { error: 'Allocations array is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Allocations array is required' }, { status: 400 });
     }
 
     await connectDB();
 
-    const LeaveType = (await import('@/models/LeaveType')).default;
     const allottedByObj = new mongoose.Types.ObjectId(allottedBy);
     const results: any[] = [];
     const errors: any[] = [];
 
-    // Performance optimization: Pre-fetch all unique leave types in a single query
-    const uniqueLeaveTypeIds = [...new Set(allocations.map(a => a.leaveType))];
-    const leaveTypeIds = uniqueLeaveTypeIds.map(id => new mongoose.Types.ObjectId(id));
-    const leaveTypesMap = new Map();
-    
-    const leaveTypes = await LeaveType.find({ _id: { $in: leaveTypeIds } }).lean();
-    leaveTypes.forEach((lt: any) => {
-      leaveTypesMap.set(lt._id.toString(), lt);
-    });
+    const uniqueLeaveTypeIds = [...new Set(allocations.map((a: any) => a.leaveType).filter(Boolean))];
+    const leaveTypeIds = uniqueLeaveTypeIds.map((id: string) => new mongoose.Types.ObjectId(id));
+    const leaveTypesList = await LeaveType.find({ _id: { $in: leaveTypeIds } }).lean();
+    const leaveTypesMap = new Map(leaveTypesList.map((lt: any) => [lt._id.toString(), lt]));
 
-    // Performance optimization: Pre-check all existing leaves in a single query
-    // Exclude deleted leave IDs if provided (for edit mode)
-    const userIds = [...new Set(allocations.map(a => a.userId))];
-    const userIdObjs = userIds.map(id => new mongoose.Types.ObjectId(id));
-    
+    const userIds = [...new Set(allocations.map((a: any) => a.userId).filter(Boolean))];
+    const userIdObjs = userIds.map((id: string) => new mongoose.Types.ObjectId(id));
     const existingLeavesQuery: any = {
       userId: { $in: userIdObjs },
       leaveType: { $in: leaveTypeIds },
       allottedBy: { $exists: true, $ne: null },
     };
-    
-    // Exclude deleted leave IDs from the check (for edit mode)
-    if (deletedLeaveIds && Array.isArray(deletedLeaveIds) && deletedLeaveIds.length > 0) {
-      const deletedIds = deletedLeaveIds.map((id: string) => new mongoose.Types.ObjectId(id));
-      existingLeavesQuery._id = { $nin: deletedIds };
+    if (deletedLeaveIds?.length > 0) {
+      existingLeavesQuery._id = { $nin: deletedLeaveIds.map((id: string) => new mongoose.Types.ObjectId(id)) };
     }
-    
     const existingLeaves = await Leave.find(existingLeavesQuery).select('userId leaveType').lean();
-    
-    // Create a Set for fast lookup: "userId-leaveTypeId"
     const existingLeavesSet = new Set(
-      existingLeaves.map((el: any) => 
-        `${el.userId.toString()}-${el.leaveType.toString()}`
-      )
+      existingLeaves.map((el: any) => `${el.userId.toString()}-${el.leaveType.toString()}`)
     );
 
-    // Prepare all leave documents for bulk insert
     const leaveDocuments: any[] = [];
-    const allocationMetadata: Map<number, { userId: string; leaveType: string }> = new Map();
+    const allocationMetadata = new Map<number, { userId: string; leaveType: string }>();
     const startDate = new Date();
     const currentTime = new Date();
-
-    // Process all allocations and prepare documents
     for (let i = 0; i < allocations.length; i++) {
       const allocation = allocations[i];
       const { userId, leaveType, days, hours, minutes, carryForward, reason } = allocation;
@@ -97,24 +76,13 @@ export async function POST(request: NextRequest) {
 
         const leaveTypeId = new mongoose.Types.ObjectId(leaveType);
         const leaveTypeExists = leaveTypesMap.get(leaveType);
-
         if (!leaveTypeExists) {
-          errors.push({
-            userId,
-            leaveType,
-            error: 'Invalid leave type',
-          });
+          errors.push({ userId, leaveType, error: 'Invalid leave type' });
           continue;
         }
 
-        // Check if this is a shortday leave type
-        const leaveTypeName = leaveTypeExists.name?.toLowerCase() || '';
-        const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                     leaveTypeName.includes('short-day') || 
-                                     leaveTypeName.includes('short day');
-
-        // Validate required fields based on leave type
-        if (isShortDayLeaveType) {
+        const shortDay = isShortDayLeaveType(leaveTypeExists.name);
+        if (shortDay) {
           const hoursValue = hours !== undefined && hours !== null ? parseInt(String(hours)) : 0;
           const minutesValue = minutes !== undefined && minutes !== null ? parseInt(String(minutes)) : 0;
           
@@ -126,30 +94,18 @@ export async function POST(request: NextRequest) {
             });
             continue;
           }
-        } else {
-          if (!days) {
-            errors.push({
-              userId,
-              leaveType,
-              error: 'Employee, leave type, and days are required',
-            });
-            continue;
-          }
-        }
-
-        // Check if this employee already has this leave type allotted (using pre-fetched data)
-        const userIdObj = new mongoose.Types.ObjectId(userId);
-        const existingKey = `${userId}-${leaveType}`;
-        if (existingLeavesSet.has(existingKey)) {
-          errors.push({
-            userId,
-            leaveType,
-            error: `Already allotted ${leaveTypeExists.name}`,
-          });
+        } else if (!days) {
+          errors.push({ userId, leaveType, error: 'Employee, leave type, and days are required' });
           continue;
         }
 
-        // Calculate end date (create new Date instance for each allocation)
+        const userIdObj = new mongoose.Types.ObjectId(userId);
+        const existingKey = `${userId}-${leaveType}`;
+        if (existingLeavesSet.has(existingKey)) {
+          errors.push({ userId, leaveType, error: `Already allotted ${leaveTypeExists.name}` });
+          continue;
+        }
+
         const allocationStartDate = new Date(startDate);
         const endDate = new Date(allocationStartDate);
         
@@ -167,14 +123,11 @@ export async function POST(request: NextRequest) {
           carryForward: carryForward || false,
         };
 
-        if (isShortDayLeaveType) {
-          const hoursValue = hours !== undefined && hours !== null ? parseInt(String(hours)) : 0;
-          const minutesValue = minutes !== undefined && minutes !== null ? parseInt(String(minutes)) : 0;
-          
-          const totalMinutes = hoursValue * 60 + minutesValue;
+        if (shortDay) {
+          const totalMinutes = (hours != null ? parseInt(String(hours), 10) : 0) * 60 +
+            (minutes != null ? parseInt(String(minutes), 10) : 0);
           const normalizedHours = Math.floor(totalMinutes / 60);
           const normalizedMinutes = totalMinutes % 60;
-          
           leaveData.days = 0;
           leaveData.hours = normalizedHours;
           leaveData.minutes = normalizedMinutes;
@@ -207,23 +160,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Performance optimization: Bulk insert all leaves at once
     if (leaveDocuments.length > 0) {
       try {
         const insertedLeaves = await Leave.insertMany(leaveDocuments, { ordered: false });
-        
-        // Batch populate all inserted leaves
-        const populatedLeaves = await Leave.find({
-          _id: { $in: insertedLeaves.map(l => l._id) }
-        })
+        const populatedLeaves = await Leave.find({ _id: { $in: insertedLeaves.map((l: any) => l._id) } })
           .populate('userId', 'name email profileImage')
           .populate('allottedBy', 'name email profileImage')
           .populate('leaveType', 'name description')
           .lean();
-        
         results.push(...populatedLeaves);
       } catch (bulkError: any) {
-        // If bulk insert fails, fall back to individual inserts for better error reporting
         console.warn('Bulk insert failed, falling back to individual inserts:', bulkError.message);
         
         for (let i = 0; i < leaveDocuments.length; i++) {

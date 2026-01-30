@@ -9,14 +9,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
 
-    // Get all users (employees, admin, hr) with dateOfBirth
     const employees = await User.find({
       dateOfBirth: { $exists: true, $ne: null },
     })
@@ -24,76 +22,53 @@ export async function GET(request: NextRequest) {
       .lean();
 
     const today = new Date();
-    // Set time to midnight for accurate day comparison
     today.setHours(0, 0, 0, 0);
     const currentYear = today.getFullYear();
+    const getAllBirthdays = request.nextUrl.searchParams.get('all') === 'true';
 
-    // Check if all birthdays are requested
-    const { searchParams } = new URL(request.url);
-    const getAllBirthdays = searchParams.get('all') === 'true';
-
-    // Calculate upcoming birthdays
     const upcomingBirthdays = employees
-      .map((employee: any) => {
-        if (!employee.dateOfBirth) return null;
-
-        const dob = new Date(employee.dateOfBirth);
+      .filter((emp: any) => emp.dateOfBirth)
+      .map((emp: any) => {
+        const dob = new Date(emp.dateOfBirth);
         const birthMonth = dob.getMonth();
         const birthDay = dob.getDate();
-
-        // Calculate next birthday
         let nextBirthday = new Date(currentYear, birthMonth, birthDay);
         nextBirthday.setHours(0, 0, 0, 0);
-        
         if (nextBirthday < today) {
-          // Birthday already passed this year, use next year
           nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
           nextBirthday.setHours(0, 0, 0, 0);
         }
-
-        // Calculate days until birthday (including today)
-        const timeDiff = nextBirthday.getTime() - today.getTime();
-        const daysUntil = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-
+        const daysUntil = Math.floor((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const dateStr = emp.dateOfBirth instanceof Date
+          ? emp.dateOfBirth.toISOString().split('T')[0]
+          : String(emp.dateOfBirth).split('T')[0];
         return {
-          _id: employee._id,
-          name: employee.name,
-          email: employee.email,
-          profileImage: employee.profileImage,
-          dateOfBirth: employee.dateOfBirth.toISOString().split('T')[0],
-          designation: employee.designation,
+          _id: emp._id,
+          name: emp.name,
+          email: emp.email,
+          profileImage: emp.profileImage,
+          dateOfBirth: dateStr,
+          designation: emp.designation,
           daysUntil,
         };
       })
-      .filter((item: any) => item !== null)
       .sort((a: any, b: any) => {
-        // Sort by month first, then by day
         if (getAllBirthdays) {
-          const aMonth = new Date(a.dateOfBirth).getMonth();
-          const bMonth = new Date(b.dateOfBirth).getMonth();
-          const aDay = new Date(a.dateOfBirth).getDate();
-          const bDay = new Date(b.dateOfBirth).getDate();
-          
-          if (aMonth !== bMonth) {
-            return aMonth - bMonth;
-          }
-          return aDay - bDay;
+          const aM = new Date(a.dateOfBirth).getMonth();
+          const bM = new Date(b.dateOfBirth).getMonth();
+          if (aM !== bM) return aM - bM;
+          return new Date(a.dateOfBirth).getDate() - new Date(b.dateOfBirth).getDate();
         }
-        // For upcoming view, sort by days until
         return a.daysUntil - b.daysUntil;
       });
 
-    // Limit to 10 upcoming birthdays only if not requesting all
     const result = getAllBirthdays ? upcomingBirthdays : upcomingBirthdays.slice(0, 10);
 
-    const response = NextResponse.json({ birthdays: result });
-    // Birthdays change daily - cache for 5 minutes with revalidation
-    // Requires auth session; keep cache private
-    response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600');
-    return response;
+    const res = NextResponse.json({ birthdays: result });
+    res.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600');
+    return res;
   } catch (error: any) {
-    console.error('Get upcoming birthdays error:', error);
+    console.error('Upcoming birthdays error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
-

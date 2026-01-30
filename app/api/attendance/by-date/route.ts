@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
       .sort({ clockIn: -1 })
       .lean();
 
-    return NextResponse.json({ attendance });
+    const response = NextResponse.json({ attendance });
+    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
+    return response;
   } catch (error: any) {
     console.error('Get attendance by date error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });

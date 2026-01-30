@@ -3,18 +3,20 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
+import LeaveType from '@/models/LeaveType';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
+const isShortDayLeaveType = (name?: string) =>
+  /shortday|short-day|short\s*day/.test((name ?? '').toLowerCase());
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     const role = (session.user as any).role;
     if (role !== 'admin' && role !== 'hr') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -23,41 +25,36 @@ export async function POST(request: NextRequest) {
     const { userId, leaveType, days, hours, minutes, carryForward, reason } = await request.json();
     const allottedBy = (session.user as any).id;
 
+    if (!userId || !leaveType) {
+      return NextResponse.json(
+        { error: 'Employee and leave type are required' },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
 
-    // Verify leave type exists and convert to ObjectId
-    const LeaveType = (await import('@/models/LeaveType')).default;
     const leaveTypeId = new mongoose.Types.ObjectId(leaveType);
-    const leaveTypeExists = await LeaveType.findById(leaveTypeId);
+    const leaveTypeExists = await LeaveType.findById(leaveTypeId).lean();
     if (!leaveTypeExists) {
       return NextResponse.json({ error: 'Invalid leave type' }, { status: 400 });
     }
 
-    // Check if this is a shortday leave type
-    const leaveTypeName = leaveTypeExists.name?.toLowerCase() || '';
-    const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                 leaveTypeName.includes('short-day') || 
-                                 leaveTypeName.includes('short day');
-
-    // Validate required fields based on leave type
-    if (isShortDayLeaveType) {
-      // For shortday leave types, check if hours or minutes are provided and valid
-      const hoursValue = hours !== undefined && hours !== null ? parseInt(String(hours)) : 0;
-      const minutesValue = minutes !== undefined && minutes !== null ? parseInt(String(minutes)) : 0;
-      
-      if (!userId || !leaveType || (isNaN(hoursValue) && isNaN(minutesValue)) || (hoursValue === 0 && minutesValue === 0)) {
+    const shortDay = isShortDayLeaveType(leaveTypeExists.name);
+    if (shortDay) {
+      const h = hours != null ? parseInt(String(hours), 10) : 0;
+      const m = minutes != null ? parseInt(String(minutes), 10) : 0;
+      if ((isNaN(h) && isNaN(m)) || (h === 0 && m === 0)) {
         return NextResponse.json(
           { error: 'Employee, leave type, and hours/minutes are required for shortday leave' },
           { status: 400 }
         );
       }
-    } else {
-      if (!userId || !leaveType || !days) {
-        return NextResponse.json(
-          { error: 'Employee, leave type, and days are required' },
-          { status: 400 }
-        );
-      }
+    } else if (!days) {
+      return NextResponse.json(
+        { error: 'Employee, leave type, and days are required' },
+        { status: 400 }
+      );
     }
 
     // Check if this employee already has this leave type allotted
@@ -75,11 +72,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate start and end dates
     const startDate = new Date();
     const endDate = new Date();
-    
-    // Convert allottedBy to ObjectId (userIdObj already created above)
     const allottedByObj = new mongoose.Types.ObjectId(allottedBy);
 
     const leaveData: any = {
@@ -96,33 +90,22 @@ export async function POST(request: NextRequest) {
       carryForward: carryForward || false,
     };
 
-    if (isShortDayLeaveType) {
-      // For shortday leave types, store hours and minutes
-      const hoursValue = hours !== undefined && hours !== null ? parseInt(String(hours)) : 0;
-      const minutesValue = minutes !== undefined && minutes !== null ? parseInt(String(minutes)) : 0;
-      
-      // Normalize minutes (convert to hours if >= 60)
-      const totalMinutes = hoursValue * 60 + minutesValue;
+    if (shortDay) {
+      const totalMinutes = (hours != null ? parseInt(String(hours), 10) : 0) * 60 +
+        (minutes != null ? parseInt(String(minutes), 10) : 0);
       const normalizedHours = Math.floor(totalMinutes / 60);
       const normalizedMinutes = totalMinutes % 60;
-      
-      leaveData.days = 0; // Set days to 0 for shortday leave types
+      leaveData.days = 0;
       leaveData.hours = normalizedHours;
       leaveData.minutes = normalizedMinutes;
       leaveData.remainingHours = normalizedHours;
       leaveData.remainingMinutes = normalizedMinutes;
     } else {
-      // For regular leave types, use days
       const daysValue = parseFloat(String(days));
       if (isNaN(daysValue) || daysValue <= 0) {
-        return NextResponse.json(
-          { error: 'Invalid days value' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Invalid days value' }, { status: 400 });
       }
-      // For decimal days, calculate end date properly
-      const daysToAdd = Math.ceil(daysValue) - 1; // Subtract 1 because start date is included
-      endDate.setDate(startDate.getDate() + daysToAdd);
+      endDate.setDate(startDate.getDate() + Math.ceil(daysValue) - 1);
       leaveData.days = daysValue;
       leaveData.remainingDays = daysValue;
     }
@@ -140,21 +123,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Allot leave error:', error);
-    
-    // Provide more specific error messages
     if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors || {}).map((err: any) => err.message);
-      return NextResponse.json({ 
-        error: `Validation failed: ${errors.join(', ')}` 
-      }, { status: 400 });
+      const messages = Object.values(error.errors || {}).map((e: any) => e.message);
+      return NextResponse.json({ error: `Validation failed: ${messages.join(', ')}` }, { status: 400 });
     }
-    
     if (error.message?.includes('enum')) {
-      return NextResponse.json({ 
-        error: 'Invalid leave type. Please refresh the page and try again.' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid leave type. Please refresh and try again.' }, { status: 400 });
     }
-    
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }

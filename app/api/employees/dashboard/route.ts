@@ -27,15 +27,12 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Get current date ranges
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    // Get start of current week (Monday)
     const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(diff);
+    startOfWeek.setDate(now.getDate() + mondayOffset);
     startOfWeek.setHours(0, 0, 0, 0);
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 6);
@@ -142,7 +139,7 @@ export async function GET(request: NextRequest) {
     }, 0);
 
     // Prepare response
-    const response = NextResponse.json({
+    const res = NextResponse.json({
       stats: {
         totalLeaveTypes: allottedLeaveTypes.length,
         pendingLeaves,
@@ -154,14 +151,10 @@ export async function GET(request: NextRequest) {
       leaveTypes: allottedLeaveTypes,
       teams,
     });
-
-    // Cache for 30 seconds - user-specific data but can tolerate slight staleness
-    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
-    return response;
+    res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
+    return res;
   } catch (error: any) {
-    console.error('Get employee dashboard error:', error);
-    const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store');
-    return errorResponse;
+    console.error('Employee dashboard error:', error);
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }

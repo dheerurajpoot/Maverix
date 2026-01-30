@@ -39,32 +39,21 @@ export async function GET(request: NextRequest) {
     // Only include leaves with status exactly 'approved' and exclude allotted leaves and penalty leaves
     const leavesOnDate = await Leave.find({
       status: 'approved',
-      allottedBy: { $exists: false }, // Exclude allotted leaves - only actual leave requests
+      allottedBy: { $exists: false },
       startDate: { $lte: endOfDate },
       endDate: { $gte: selectedDate },
-      reason: { $not: { $regex: /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct|leave.*deduction/i } }, // Exclude penalty-related leaves and deduction history
+      reason: { $not: { $regex: /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct|leave.*deduction/i } },
     })
-      .select('userId startDate endDate reason')
+      .select('userId')
       .lean();
 
-    // Filter out any penalty leaves that might have passed the regex check
-    const approvedLeavesOnly = leavesOnDate.filter((leave: any) => {
-      // Exclude penalty-related leaves
-      if (leave.reason && /penalty|clock.*in.*late|exceeded.*max.*late|auto.*deduct/i.test(leave.reason)) {
-        return false;
-      }
-      return true;
-    });
-
-    // Extract unique user IDs from approved leaves (excluding penalties)
     const userIdsOnLeave = Array.from(
-      new Set(approvedLeavesOnly.map((leave: any) => leave.userId.toString()))
+      new Set(leavesOnDate.map((l: any) => (l.userId?._id || l.userId)?.toString()).filter(Boolean))
     );
 
-    return NextResponse.json({ 
-      userIdsOnLeave,
-      count: userIdsOnLeave.length 
-    });
+    const response = NextResponse.json({ userIdsOnLeave, count: userIdsOnLeave.length });
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
+    return response;
   } catch (error: any) {
     console.error('Get employees on leave by date error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });

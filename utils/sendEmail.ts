@@ -1,62 +1,38 @@
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
+	host: process.env.SMTP_HOST,
+	port: parseInt(process.env.SMTP_PORT || "587"),
+	secure: false,
+	auth: {
+		user: process.env.SMTP_USER,
+		pass: process.env.SMTP_PASS,
+	},
 });
 
 // Helper function to convert 24-hour time to 12-hour format
 function formatTime12Hour(time24: string): string {
-  if (!time24) return '';
-  const [hours, minutes] = time24.split(':');
-  const hour = parseInt(hours, 10);
-  const min = minutes || '00';
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${hour12}:${min} ${period}`;
+	if (!time24) return "";
+	const [hours, minutes] = time24.split(":");
+	const hour = parseInt(hours, 10);
+	const min = minutes || "00";
+	const period = hour >= 12 ? "PM" : "AM";
+	const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+	return `${hour12}:${min} ${period}`;
 }
 
-// Helper function to format time range from "HH:MM-HH:MM" to "h:mm AM - h:mm PM"
-function formatTimeRange(timeRange: string): string {
-  if (!timeRange) return '';
-  if (timeRange.includes('-')) {
-    const [from, to] = timeRange.split('-');
-    return `${formatTime12Hour(from)} - ${formatTime12Hour(to)}`;
-  }
-  return formatTime12Hour(timeRange);
-}
+export async function sendVerificationEmail(
+	email: string,
+	token: string,
+	name?: string,
+) {
+	const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/verify?token=${token}`;
 
-/**
- * Gets the formatted "from" email address with display name
- * Always uses "MaveriX" as the display name
- * @returns Formatted email string like "MaveriX <email@example.com>" or just "email@example.com"
- */
-function getFromEmail(): string {
-  // Always use "MaveriX" as the display name (hardcoded, ignoring any environment variables)
-  const fromEmail: string = process.env.FROM_EMAIL || process.env.SMTP_USER || '';
-  const displayName = 'MaveriX';
-
-  if (fromEmail) {
-    const formattedEmail = `${displayName} <${fromEmail}>`;
-    return formattedEmail;
-  }
-
-  return '';
-}
-
-export async function sendVerificationEmail(email: string, token: string, name?: string) {
-  const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/verify?token=${token}`;
-
-  const mailOptions = {
-    from: getFromEmail(),
-    to: email,
-    subject: 'Verify Your Email - MaveriX',
-    html: `
+	const mailOptions = {
+		from: `"Maverix" <${process.env.FROM_EMAIL}>`,
+		to: email,
+		subject: "Verify Your Email - MaveriX",
+		html: `
       <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -132,25 +108,25 @@ export async function sendVerificationEmail(email: string, token: string, name?:
 </body>
 </html>
     `,
-  };
+	};
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return { success: false, error };
-  }
+	try {
+		await transporter.sendMail(mailOptions);
+		return { success: true };
+	} catch (error) {
+		console.error("Error sending email:", error);
+		return { success: false, error };
+	}
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
+	const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
 
-  const mailOptions = {
-    from: getFromEmail(),
-    to: email,
-    subject: 'Reset Your Password - MaveriX',
-    html: `
+	const mailOptions = {
+		from: `"Maverix" <${process.env.FROM_EMAIL}>`,
+		to: email,
+		subject: "Reset Your Password - MaveriX",
+		html: `
       <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -228,41 +204,41 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 </body>
 </html>
     `,
-  };
+	};
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return { success: false, error };
-  }
+	try {
+		await transporter.sendMail(mailOptions);
+		return { success: true };
+	} catch (error) {
+		console.error("Error sending email:", error);
+		return { success: false, error };
+	}
 }
 
 interface LeaveRequestEmailData {
-  employeeName: string;
-  employeeEmail: string;
-  profileImage?: string;
-  leaveType: string;
-  reason: string;
-  days: number;
-  startDate: string;
-  endDate: string;
-  halfDayType?: 'first-half' | 'second-half';
-  shortDayTime?: string;
-  hours?: number;
-  minutes?: number;
+	employeeName: string;
+	employeeEmail: string;
+	profileImage?: string;
+	leaveType: string;
+	reason: string;
+	days: number;
+	startDate: string;
+	endDate: string;
+	halfDayType?: "first-half" | "second-half";
+	shortDayTime?: string;
+	hours?: number;
+	minutes?: number;
 }
 
 export async function sendLeaveRequestNotificationToHR(
-  hrEmails: string[],
-  data: LeaveRequestEmailData
+	hrEmails: string[],
+	data: LeaveRequestEmailData,
 ) {
-  const mailOptions = {
-    from: getFromEmail(),
-    to: hrEmails.join(', '),
-    subject: `New Leave Request from ${data.employeeName} - MaveriX`,
-    html: `
+	const mailOptions = {
+		from: `"Maverix" <${process.env.FROM_EMAIL}>`,
+		to: hrEmails.join(", "),
+		subject: `New Leave Request from ${data.employeeName} - MaveriX`,
+		html: `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -291,15 +267,27 @@ export async function sendLeaveRequestNotificationToHR(
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Leave Type:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.leaveType}</td>
                   </tr>
-                  ${data.shortDayTime && data.hours !== undefined ? (() => {
-                    // Parse the shortDayTime string (format: "HH:MM-HH:MM")
-                    const timeParts = data.shortDayTime.includes('-') ? data.shortDayTime.split('-') : [data.shortDayTime];
-                    const fromTime = timeParts[0] ? formatTime12Hour(timeParts[0].trim()) : '';
-                    const toTime = timeParts[1] ? formatTime12Hour(timeParts[1].trim()) : '';
-                    const hoursDisplay = data.hours || 0;
-                    const minutesDisplay = data.minutes || 0;
-                    const totalHoursDisplay = minutesDisplay > 0 ? `${hoursDisplay}h ${minutesDisplay}m` : `${hoursDisplay}h`;
-                    return `
+                  ${
+						data.shortDayTime && data.hours !== undefined
+							? (() => {
+									// Parse the shortDayTime string (format: "HH:MM-HH:MM")
+									const timeParts =
+										data.shortDayTime.includes("-")
+											? data.shortDayTime.split("-")
+											: [data.shortDayTime];
+									const fromTime = timeParts[0]
+										? formatTime12Hour(timeParts[0].trim())
+										: "";
+									const toTime = timeParts[1]
+										? formatTime12Hour(timeParts[1].trim())
+										: "";
+									const hoursDisplay = data.hours || 0;
+									const minutesDisplay = data.minutes || 0;
+									const totalHoursDisplay =
+										minutesDisplay > 0
+											? `${hoursDisplay}h ${minutesDisplay}m`
+											: `${hoursDisplay}h`;
+									return `
                   <tr>
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">From Time:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${fromTime}</td>
@@ -313,16 +301,20 @@ export async function sendLeaveRequestNotificationToHR(
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${totalHoursDisplay}</td>
                   </tr>
                   `;
-                  })() : `
+								})()
+							: `
                   <tr>
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Total Days:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${
-                      data.days === 0.5 && data.halfDayType 
-                        ? (data.halfDayType === 'first-half' ? 'First Half' : 'Second Half')
-                        : `${data.days} ${data.days === 1 ? 'day' : 'days'}`
-                    }</td>
+						data.days === 0.5 && data.halfDayType
+							? data.halfDayType === "first-half"
+								? "First Half"
+								: "Second Half"
+							: `${data.days} ${data.days === 1 ? "day" : "days"}`
+					}</td>
                   </tr>
-                  `}
+                  `
+					}
                   <tr>
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Start Date:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.startDate}</td>
@@ -363,46 +355,46 @@ export async function sendLeaveRequestNotificationToHR(
       </body>
       </html>
     `,
-  };
+	};
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending leave request email:', error);
-    return { success: false, error };
-  }
+	try {
+		await transporter.sendMail(mailOptions);
+		return { success: true };
+	} catch (error) {
+		console.error("Error sending leave request email:", error);
+		return { success: false, error };
+	}
 }
 
 interface LeaveStatusEmailData {
-  employeeName: string;
-  employeeEmail: string;
-  leaveType: string;
-  days: number;
-  startDate: string;
-  endDate: string;
-  status: 'approved' | 'rejected';
-  rejectionReason?: string;
-  approvedBy?: string;
-  halfDayType?: 'first-half' | 'second-half';
-  shortDayTime?: string;
-  hours?: number;
-  minutes?: number;
+	employeeName: string;
+	employeeEmail: string;
+	leaveType: string;
+	days: number;
+	startDate: string;
+	endDate: string;
+	status: "approved" | "rejected";
+	rejectionReason?: string;
+	approvedBy?: string;
+	halfDayType?: "first-half" | "second-half";
+	shortDayTime?: string;
+	hours?: number;
+	minutes?: number;
 }
 
 export async function sendLeaveStatusNotificationToEmployee(
-  data: LeaveStatusEmailData
+	data: LeaveStatusEmailData,
 ) {
-  const isApproved = data.status === 'approved';
-  const statusColor = isApproved ? '#10b981' : '#ef4444';
-  const statusText = isApproved ? 'Approved' : 'Rejected';
-  const statusIcon = isApproved ? '✅' : '❌';
+	const isApproved = data.status === "approved";
+	const statusColor = isApproved ? "#10b981" : "#ef4444";
+	const statusText = isApproved ? "Approved" : "Rejected";
+	const statusIcon = isApproved ? "✅" : "❌";
 
-  const mailOptions = {
-    from: getFromEmail(),
-    to: data.employeeEmail,
-    subject: `Leave Request ${statusText} - MaveriX`,
-    html: `
+	const mailOptions = {
+		from: `"Maverix" <${process.env.FROM_EMAIL}>`,
+		to: data.employeeEmail,
+		subject: `Leave Request ${statusText} - MaveriX`,
+		html: `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -433,15 +425,27 @@ export async function sendLeaveStatusNotificationToEmployee(
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Leave Type:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.leaveType}</td>
                   </tr>
-                  ${data.shortDayTime && data.hours !== undefined ? (() => {
-                    // Parse the shortDayTime string (format: "HH:MM-HH:MM")
-                    const timeParts = data.shortDayTime.includes('-') ? data.shortDayTime.split('-') : [data.shortDayTime];
-                    const fromTime = timeParts[0] ? formatTime12Hour(timeParts[0].trim()) : '';
-                    const toTime = timeParts[1] ? formatTime12Hour(timeParts[1].trim()) : '';
-                    const hoursDisplay = data.hours || 0;
-                    const minutesDisplay = data.minutes || 0;
-                    const totalHoursDisplay = minutesDisplay > 0 ? `${hoursDisplay}h ${minutesDisplay}m` : `${hoursDisplay}h`;
-                    return `
+                  ${
+						data.shortDayTime && data.hours !== undefined
+							? (() => {
+									// Parse the shortDayTime string (format: "HH:MM-HH:MM")
+									const timeParts =
+										data.shortDayTime.includes("-")
+											? data.shortDayTime.split("-")
+											: [data.shortDayTime];
+									const fromTime = timeParts[0]
+										? formatTime12Hour(timeParts[0].trim())
+										: "";
+									const toTime = timeParts[1]
+										? formatTime12Hour(timeParts[1].trim())
+										: "";
+									const hoursDisplay = data.hours || 0;
+									const minutesDisplay = data.minutes || 0;
+									const totalHoursDisplay =
+										minutesDisplay > 0
+											? `${hoursDisplay}h ${minutesDisplay}m`
+											: `${hoursDisplay}h`;
+									return `
                   <tr>
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">From Time:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${fromTime}</td>
@@ -455,16 +459,20 @@ export async function sendLeaveStatusNotificationToEmployee(
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${totalHoursDisplay}</td>
                   </tr>
                   `;
-                  })() : `
+								})()
+							: `
                   <tr>
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Total Days:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${
-                      data.days === 0.5 && data.halfDayType 
-                        ? (data.halfDayType === 'first-half' ? 'First Half' : 'Second Half')
-                        : `${data.days} ${data.days === 1 ? 'day' : 'days'}`
-                    }</td>
+						data.days === 0.5 && data.halfDayType
+							? data.halfDayType === "first-half"
+								? "First Half"
+								: "Second Half"
+							: `${data.days} ${data.days === 1 ? "day" : "days"}`
+					}</td>
                   </tr>
-                  `}
+                  `
+					}
                   <tr>
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Start Date:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.startDate}</td>
@@ -473,21 +481,29 @@ export async function sendLeaveStatusNotificationToEmployee(
                     <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">End Date:</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.endDate}</td>
                   </tr>
-                  ${data.approvedBy ? `
+                  ${
+						data.approvedBy
+							? `
                   <tr>
-                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">${isApproved ? 'Approved by:' : 'Rejected by:'}</td>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">${isApproved ? "Approved by:" : "Rejected by:"}</td>
                     <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.approvedBy}</td>
                   </tr>
-                  ` : ''}
+                  `
+							: ""
+					}
                 </table>
               </div>
 
-              ${!isApproved && data.rejectionReason ? `
+              ${
+					!isApproved && data.rejectionReason
+						? `
               <div style="margin-bottom: 30px;">
                 <p style="color: #5f6368; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Rejection Reason:</p>
                 <p style="color: #202124; font-size: 14px; background: #fee2e2; padding: 15px; border-radius: 8px; margin: 0; white-space: pre-wrap; border-left: 4px solid #ef4444;">${data.rejectionReason}</p>
               </div>
-              ` : ''}
+              `
+						: ""
+				}
 
               <div style="text-align: center; margin-top: 30px;">
                 <a href="${process.env.NEXT_PUBLIC_BASE_URL}/employee/leaves" 
@@ -513,14 +529,13 @@ export async function sendLeaveStatusNotificationToEmployee(
       </body>
       </html>
     `,
-  };
+	};
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending leave status email:', error);
-    return { success: false, error };
-  }
+	try {
+		await transporter.sendMail(mailOptions);
+		return { success: true };
+	} catch (error) {
+		console.error("Error sending leave status email:", error);
+		return { success: false, error };
+	}
 }
-

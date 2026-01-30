@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
       .populate('members', 'name email profileImage mobileNumber')
       .populate('createdBy', 'name email profileImage')
       .sort({ createdAt: -1 })
-      .limit(10);
+      .limit(10)
+      .lean();
 
     const response = NextResponse.json({ teams });
     // Teams change rarely - cache for 5 minutes

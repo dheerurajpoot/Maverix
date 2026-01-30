@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const getAll = searchParams.get('all') === 'true';
 
-    // Get all announcements, sorted by newest first
     const announcements = await Announcement.find()
       .populate('createdBy', 'name email profileImage role')
       .populate({
@@ -33,6 +32,7 @@ export async function GET(request: NextRequest) {
         select: 'name email profileImage',
       })
       .sort({ createdAt: -1 })
+      .limit(100)
       .lean();
 
     // For employees, filter announcements that haven't been viewed 2 times yet and date is today or past

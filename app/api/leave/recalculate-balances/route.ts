@@ -22,36 +22,43 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // Get all allotted leaves
     const allottedLeaves = await Leave.find({
       allottedBy: { $exists: true, $ne: null },
-    });
+    })
+      .select('_id userId leaveType days')
+      .lean();
+
+    if (allottedLeaves.length === 0) {
+      return NextResponse.json({ message: 'Recalculated balances for 0 allotted leaves', updated: 0 });
+    }
+
+    const approvedByUserAndType = await Leave.aggregate([
+      { $match: { status: 'approved', allottedBy: { $exists: false } } },
+      { $group: { _id: { userId: '$userId', leaveType: '$leaveType' }, totalDays: { $sum: '$days' } } },
+    ]);
+    const usedMap = new Map(
+      approvedByUserAndType.map((r: any) => [
+        `${r._id.userId?.toString()}-${r._id.leaveType?.toString()}`,
+        r.totalDays,
+      ])
+    );
 
     let updated = 0;
-
-    for (const allottedLeave of allottedLeaves) {
-      // Initialize remainingDays if not set
-      if (allottedLeave.remainingDays === undefined || allottedLeave.remainingDays === null) {
-        allottedLeave.remainingDays = allottedLeave.days || 0;
-      }
-
-      // Find all approved leave requests for this leave type and user
-      const approvedRequests = await Leave.find({
-        userId: allottedLeave.userId,
-        leaveType: allottedLeave.leaveType,
-        status: 'approved',
-        allottedBy: { $exists: false },
-      });
-
-      // Calculate total used days
-      const totalUsed = approvedRequests.reduce((sum, req) => sum + (req.days || 0), 0);
-
-      // Recalculate remaining days
-      const totalDays = allottedLeave.days || 0;
-      allottedLeave.remainingDays = Math.max(0, totalDays - totalUsed);
-
-      await allottedLeave.save();
+    const bulkOps = allottedLeaves.map((allotted: any) => {
+      const key = `${allotted.userId?.toString()}-${allotted.leaveType?.toString()}`;
+      const totalUsed = usedMap.get(key) || 0;
+      const remainingDays = Math.max(0, (allotted.days || 0) - totalUsed);
       updated++;
+      return {
+        updateOne: {
+          filter: { _id: allotted._id },
+          update: { $set: { remainingDays } },
+        },
+      };
+    });
+
+    if (bulkOps.length > 0) {
+      await Leave.bulkWrite(bulkOps);
     }
 
     return NextResponse.json({

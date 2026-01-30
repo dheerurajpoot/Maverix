@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Get all posts, sorted by newest first
     const posts = await Feed.find()
       .populate('userId', 'name email profileImage role designation')
       .populate({
@@ -27,19 +26,15 @@ export async function GET(request: NextRequest) {
         strictPopulate: false,
       })
       .sort({ createdAt: -1 })
+      .limit(100)
       .lean();
 
     const response = NextResponse.json({ posts });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
     return response;
   } catch (error: any) {
     console.error('Get feed error:', error);
-    const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    return errorResponse;
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
 
@@ -71,35 +66,29 @@ export async function POST(request: NextRequest) {
 
     const userId = (session.user as any).id;
 
-    // Extract mentions from content (format: @username or @email, can include spaces)
-    // Match @ followed by name (can include spaces) or email, until space or end
     const mentionRegex = /@([\w\s]+?)(?=\s|$|@)/g;
-    const mentionMatches = content.match(mentionRegex) || [];
+    const mentionMatches = [...(content.match(mentionRegex) || [])].map((m) => m.substring(1).trim()).filter(Boolean);
+    const uniqueMentions = [...new Set(mentionMatches)];
     const mentionUserIds: string[] = [];
 
-    // Find users by email or name
-    for (const mention of mentionMatches) {
-      const mentionText = mention.substring(1).trim(); // Remove @ and trim spaces
-      if (!mentionText) continue;
-
-      // Try to find user by exact name match first, then by first name, then by email
-      let user = await User.findOne({
-        $or: [
-          { email: mentionText },
-          { name: { $regex: new RegExp(`^${mentionText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
-        ],
-      }).select('_id').lean();
-      
-      // If no exact match, try matching by first name
-      if (!user) {
-        const firstName = mentionText.split(' ')[0];
-        user = await User.findOne({
-          name: { $regex: new RegExp(`^${firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i') },
-        }).select('_id').lean();
+    if (uniqueMentions.length > 0) {
+      const orConditions: any[] = [];
+      for (const text of uniqueMentions) {
+        const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        orConditions.push(
+          { email: text },
+          { name: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+          { name: { $regex: new RegExp(`^${(text.split(' ')[0] || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i') } }
+        );
       }
-      
-      if (user && user._id && !mentionUserIds.includes(user._id.toString())) {
-        mentionUserIds.push(user._id.toString());
+      const users = await User.find({ $or: orConditions }).select('_id').lean();
+      const seen = new Set<string>();
+      for (const u of users) {
+        const id = u._id?.toString();
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          mentionUserIds.push(id);
+        }
       }
     }
 

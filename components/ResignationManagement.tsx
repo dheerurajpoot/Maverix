@@ -129,79 +129,42 @@ export default function ResignationManagement({ initialResignations }: Resignati
   const [updatingProcess, setUpdatingProcess] = useState(false);
   const toast = useToast();
 
-  // Update resignations when initialResignations changes
-  useEffect(() => {
-    // Process initial resignations to ensure all fields are properly formatted
-    const processed = initialResignations.map((r: any) => {
-      let assetsArray: string[] = [];
-      if (r.assets !== undefined && r.assets !== null) {
-        if (Array.isArray(r.assets)) {
-          assetsArray = r.assets.filter((a: any) => a != null && a !== '' && String(a).trim() !== '');
-        } else if (typeof r.assets === 'string' && r.assets.trim() !== '') {
-          assetsArray = [r.assets.trim()];
-        }
+  const processResignation = (r: any) => {
+    let assetsArray: string[] = [];
+    if (r.assets != null) {
+      if (Array.isArray(r.assets)) {
+        assetsArray = r.assets.filter((a: any) => a != null && a !== '' && String(a).trim() !== '');
+      } else if (typeof r.assets === 'string' && r.assets.trim() !== '') {
+        assetsArray = [r.assets.trim()];
       }
-      
-      // Process notice period dates
-      const noticePeriodStartDate = r.noticePeriodStartDate 
-        ? (typeof r.noticePeriodStartDate === 'string' ? r.noticePeriodStartDate : new Date(r.noticePeriodStartDate).toISOString())
-        : undefined;
-      const noticePeriodEndDate = r.noticePeriodEndDate 
-        ? (typeof r.noticePeriodEndDate === 'string' ? r.noticePeriodEndDate : new Date(r.noticePeriodEndDate).toISOString())
-        : undefined;
-      
-      return {
-        ...r,
-        assets: assetsArray,
-        noticePeriodStartDate,
-        noticePeriodEndDate,
-        noticePeriodComplied: r.noticePeriodComplied || false,
-        clearances: r.clearances || undefined,
-      };
-    });
-    
-    setResignations(processed);
+    }
+    const noticePeriodStartDate = r.noticePeriodStartDate
+      ? (typeof r.noticePeriodStartDate === 'string' ? r.noticePeriodStartDate : new Date(r.noticePeriodStartDate).toISOString())
+      : undefined;
+    const noticePeriodEndDate = r.noticePeriodEndDate
+      ? (typeof r.noticePeriodEndDate === 'string' ? r.noticePeriodEndDate : new Date(r.noticePeriodEndDate).toISOString())
+      : undefined;
+    return {
+      ...r,
+      assets: assetsArray,
+      noticePeriodStartDate,
+      noticePeriodEndDate,
+      noticePeriodComplied: r.noticePeriodComplied ?? false,
+      clearances: r.clearances ?? undefined,
+    };
+  };
+
+  useEffect(() => {
+    setResignations(initialResignations.map(processResignation));
   }, [initialResignations]);
 
   const fetchResignations = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/resignation', {
-        cache: 'no-store',
-      });
+      const res = await fetch('/api/resignation');
       const data = await res.json();
-
       if (res.ok) {
-        // Ensure assets are arrays and notice period dates/clearances are properly formatted
-        const processedResignations = (data.resignations || []).map((r: any) => {
-          let assetsArray: string[] = [];
-          if (r.assets !== undefined && r.assets !== null) {
-            if (Array.isArray(r.assets)) {
-              assetsArray = r.assets.filter((a: any) => a != null && a !== '' && String(a).trim() !== '');
-            } else if (typeof r.assets === 'string' && r.assets.trim() !== '') {
-              assetsArray = [r.assets.trim()];
-            }
-          }
-          
-          // Process notice period dates
-          const noticePeriodStartDate = r.noticePeriodStartDate 
-            ? (typeof r.noticePeriodStartDate === 'string' ? r.noticePeriodStartDate : new Date(r.noticePeriodStartDate).toISOString())
-            : undefined;
-          const noticePeriodEndDate = r.noticePeriodEndDate 
-            ? (typeof r.noticePeriodEndDate === 'string' ? r.noticePeriodEndDate : new Date(r.noticePeriodEndDate).toISOString())
-            : undefined;
-          
-          return {
-            ...r,
-            assets: assetsArray,
-            noticePeriodStartDate,
-            noticePeriodEndDate,
-            noticePeriodComplied: r.noticePeriodComplied || false,
-            clearances: r.clearances || undefined,
-          };
-        });
-        
-        setResignations(processedResignations);
+        setResignations((data.resignations || []).map(processResignation));
       } else {
         toast.error(data.error || 'Failed to fetch resignations');
       }

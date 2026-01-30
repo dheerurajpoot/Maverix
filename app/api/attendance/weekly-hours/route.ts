@@ -18,14 +18,12 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Get start of current week (Monday)
+    // Start of current week (Monday), end of week (Sunday)
     const now = new Date();
     const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
-    const startOfWeek = new Date(now.setDate(diff));
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), diff);
     startOfWeek.setHours(0, 0, 0, 0);
-
-    // Get end of current week (Sunday)
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);

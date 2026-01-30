@@ -10,65 +10,48 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if ((session.user as any).role !== 'admin') {
+    if (!session || (session.user as any).role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
 
-    // Get today's date range
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
 
-    // Get all employees (excluding admin)
-    const allEmployees = await User.find({
-      role: { $ne: 'admin' },
-      emailVerified: true,
-      password: { $exists: true, $ne: null }
-    })
-      .select('_id name email profileImage designation')
-      .lean();
+    const [allEmployees, clockedInUserIds] = await Promise.all([
+      User.find({
+        role: { $ne: 'admin' },
+        emailVerified: true,
+        password: { $exists: true, $ne: null },
+      })
+        .select('_id name email profileImage designation')
+        .lean(),
 
-    // Get all user IDs who have clocked in today
-    const clockedInUserIds = await Attendance.distinct('userId', {
-      clockIn: { $gte: today, $lt: tomorrow }
-    });
+      Attendance.distinct('userId', {
+        clockIn: { $gte: today, $lte: endOfToday },
+      }),
+    ]);
 
-    // Convert to string array for comparison
-    const clockedInIds = clockedInUserIds.map(id => id.toString());
+    const clockedInSet = new Set(clockedInUserIds.map((id) => id.toString()));
 
-    // Filter employees who haven't clocked in today
     const notClockedIn = allEmployees
-      .filter(emp => !clockedInIds.includes(emp._id.toString()))
-      .map(emp => {
-        // Ensure profileImage is included, even if it's null or undefined
-        const profileImage = emp.profileImage && typeof emp.profileImage === 'string' && emp.profileImage.trim() !== '' 
-          ? emp.profileImage 
-          : null;
-        
-        return {
-          _id: emp._id.toString(),
-          name: emp.name || '',
-          email: emp.email || '',
-          profileImage: profileImage,
-          designation: emp.designation || null,
-        };
-      });
+      .filter((emp) => !clockedInSet.has(emp._id.toString()))
+      .map((emp) => ({
+        _id: emp._id.toString(),
+        name: emp.name || '',
+        email: emp.email || '',
+        profileImage: emp.profileImage && String(emp.profileImage).trim() ? emp.profileImage : null,
+        designation: emp.designation || null,
+      }));
 
-    return NextResponse.json({
-      employees: notClockedIn,
-      count: notClockedIn.length,
-    });
+    const res = NextResponse.json({ employees: notClockedIn, count: notClockedIn.length });
+    res.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
+    return res;
   } catch (error) {
-    console.error('Error fetching not clocked in employees:', error);
+    console.error('Not clocked in error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

@@ -55,20 +55,15 @@ export async function GET(request: NextRequest) {
     const attendance = await Attendance.find(query)
       .populate('userId', 'name email profileImage mobileNumber')
       .sort({ clockIn: -1 })
-      .limit(500) // Increased limit to support month filtering
+      .limit(500)
       .lean();
 
     const response = NextResponse.json({ attendance });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    response.headers.set('Cache-Control', 'private, s-maxage=15, stale-while-revalidate=30');
     return response;
   } catch (error: any) {
     console.error('Get attendance error:', error);
-    const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    return errorResponse;
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
 

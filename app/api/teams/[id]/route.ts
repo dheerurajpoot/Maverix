@@ -28,7 +28,8 @@ export async function GET(
     const team = await Team.findById(params.id)
       .populate('leader', 'name email profileImage mobileNumber')
       .populate('members', 'name email profileImage mobileNumber')
-      .populate('createdBy', 'name email profileImage');
+      .populate('createdBy', 'name email profileImage')
+      .lean();
 
     if (!team) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });

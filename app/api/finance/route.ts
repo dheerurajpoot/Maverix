@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
       .sort({ year: -1, month: -1 })
       .lean();
 
-    return NextResponse.json({ finances });
+    const response = NextResponse.json({ finances });
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
+    return response;
   } catch (error: any) {
     console.error('Get finance error:', error);
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });

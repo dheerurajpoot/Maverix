@@ -31,16 +31,16 @@ export async function GET(request: NextRequest) {
     targetDate.setHours(0, 0, 0, 0);
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
+    const userIdObj = new mongoose.Types.ObjectId(userId);
 
-    // Get max late days from settings FIRST (to validate existing penalties)
-    const maxLateDaysSetting = await Settings.findOne({ key: 'maxLateDays' });
+    const [maxLateDaysSetting, penalty] = await Promise.all([
+      Settings.findOne({ key: 'maxLateDays' }).lean(),
+      Penalty.findOne({
+        userId: userIdObj,
+        date: { $gte: targetDate, $lte: endOfDay },
+      }).lean(),
+    ]);
     const maxLateDays = maxLateDaysSetting?.value !== undefined ? maxLateDaysSetting.value : 0;
-
-    // Check if user has penalty today
-    const penalty = await Penalty.findOne({
-      userId: new mongoose.Types.ObjectId(userId),
-      date: { $gte: targetDate, $lte: endOfDay },
-    }).lean();
 
     if (!penalty) {
       return NextResponse.json({ hasPenalty: false });
@@ -66,35 +66,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ hasPenalty: false });
     }
 
-    // Get user's time limit (custom or default)
-    const user = await User.findById(userId).lean();
-    let timeLimit = '';
-    
-    if (user?.clockInTime && user.clockInTime !== 'N/R') {
-      timeLimit = user.clockInTime;
-    } else {
-      const defaultTimeSetting = await Settings.findOne({ key: 'defaultClockInTimeLimit' });
-      timeLimit = defaultTimeSetting?.value || '';
-    }
-
-    if (!timeLimit) {
-      timeLimit = penalty.timeLimit || '';
-    }
-
-    // Get all late arrivals for current month from attendance records
     const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
     startOfMonth.setHours(0, 0, 0, 0);
 
+    const [user, defaultTimeSetting, attendanceRecords] = await Promise.all([
+      User.findById(userId).select('clockInTime').lean(),
+      Settings.findOne({ key: 'defaultClockInTimeLimit' }).lean(),
+      Attendance.find({ userId: userIdObj, clockIn: { $gte: startOfMonth } })
+        .select('clockIn')
+        .sort({ clockIn: 1 })
+        .lean(),
+    ]);
+
+    let timeLimit = user?.clockInTime && user.clockInTime !== 'N/R'
+      ? user.clockInTime
+      : (defaultTimeSetting?.value || '');
+    if (!timeLimit) timeLimit = penalty.timeLimit || '';
+
     const [limitHours, limitMinutes] = timeLimit.split(':').map(Number);
     const limitTotalMinutes = limitHours * 60 + limitMinutes;
-
-    const attendanceRecords = await Attendance.find({
-      userId: new mongoose.Types.ObjectId(userId),
-      clockIn: { $gte: startOfMonth },
-    })
-      .select('clockIn date')
-      .sort({ clockIn: 1 })
-      .lean();
 
     // Count late arrivals with their dates and times
     const lateArrivals: Array<{ date: string; clockInTime: string }> = [];
@@ -124,48 +114,37 @@ export async function GET(request: NextRequest) {
     const penaltyDate = penalty.date ? format(new Date(penalty.date), 'yyyy-MM-dd') : null;
     const lateArrivalDate = penalty.lateArrivalDate ? format(new Date(penalty.lateArrivalDate), 'yyyy-MM-dd') : null;
 
-    // Get casual leave information
     let totalCasualLeave = 0;
     let deductedCasualLeave = 0;
     let updatedCasualLeave = 0;
 
     try {
-      // Find or get casual leave type
-      const casualLeaveType = await LeaveType.findOne({ 
-        name: { $regex: /^casual\s*leave$/i } 
-      });
-
+      const casualLeaveType = await LeaveType.findOne({ name: { $regex: /^casual\s*leave$/i } }).lean();
       if (casualLeaveType) {
-        // Get allotted casual leave
-        const allottedLeave = await Leave.findOne({
-          userId: new mongoose.Types.ObjectId(userId),
-          leaveType: casualLeaveType._id,
-          allottedBy: { $exists: true, $ne: null },
-        }).lean();
-
-        if (allottedLeave) {
-          totalCasualLeave = allottedLeave.days || 0;
-          
-          // Calculate total deducted due to penalties
-          const penaltyLeaves = await Leave.find({
-            userId: new mongoose.Types.ObjectId(userId),
+        const [allottedLeave, penaltyLeaves, allApprovedRequests] = await Promise.all([
+          Leave.findOne({
+            userId: userIdObj,
+            leaveType: casualLeaveType._id,
+            allottedBy: { $exists: true, $ne: null },
+          }).lean(),
+          Leave.find({
+            userId: userIdObj,
             leaveType: casualLeaveType._id,
             status: 'approved',
             allottedBy: { $exists: false },
             reason: { $regex: /penalty|late.*clock.*in|exceeded.*max.*late/i },
-          }).lean();
-
-          deductedCasualLeave = penaltyLeaves.reduce((sum: number, leave: any) => sum + (leave.days || 0), 0);
-
-          // Calculate remaining days (total - all approved requests including penalties)
-          const allApprovedRequests = await Leave.find({
-            userId: new mongoose.Types.ObjectId(userId),
+          }).select('days').lean(),
+          Leave.find({
+            userId: userIdObj,
             leaveType: casualLeaveType._id,
             status: 'approved',
             allottedBy: { $exists: false },
-          }).lean();
-
-          const totalUsed = allApprovedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+          }).select('days').lean(),
+        ]);
+        if (allottedLeave) {
+          totalCasualLeave = allottedLeave.days || 0;
+          deductedCasualLeave = penaltyLeaves.reduce((sum: number, l: any) => sum + (l.days || 0), 0);
+          const totalUsed = allApprovedRequests.reduce((sum: number, l: any) => sum + (l.days || 0), 0);
           updatedCasualLeave = Math.max(0, totalCasualLeave - totalUsed);
         }
       }

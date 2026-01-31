@@ -46,7 +46,10 @@ export default function Feed() {
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [deletingPost, setDeletingPost] = useState<Post | null>(null);
 	const [deleteLoading, setDeleteLoading] = useState(false);
-	const [users, setUsers] = useState<MentionUser[]>([]);
+	const [mentionCandidates, setMentionCandidates] = useState<MentionUser[]>(
+		[],
+	);
+	const [loadingMentions, setLoadingMentions] = useState(false);
 	const [showMentionPopup, setShowMentionPopup] = useState(false);
 	const [selectedMention, setSelectedMention] = useState<MentionUser | null>(
 		null,
@@ -89,31 +92,56 @@ export default function Feed() {
 	}, []);
 
 	useEffect(() => {
-		fetchUsers();
 		fetchPosts();
-	}, []);
+	}, [fetchPosts]);
 
-	const fetchUsers = async () => {
+	// Fetch mention candidates only when dropdown is open (user typed @)
+	const fetchMentionCandidates = useCallback(async (query: string) => {
+		setLoadingMentions(true);
 		try {
-			const res = await fetch("/api/feed/users");
+			const params = new URLSearchParams({ limit: "15" });
+			if (query.trim()) params.set("q", query.trim());
+			const res = await fetch(`/api/feed/users?${params}`);
 			const data = await res.json();
 			if (res.ok) {
-				setUsers(data.users || []);
+				setMentionCandidates(data.users || []);
+			} else {
+				setMentionCandidates([]);
 			}
 		} catch (err) {
-			console.error("Failed to fetch users:", err);
+			console.error("Failed to fetch mention candidates:", err);
+			setMentionCandidates([]);
+		} finally {
+			setLoadingMentions(false);
 		}
-	};
+	}, []);
 
-	// Filter users based on mention query
-	const filteredUsers = users.filter((user) => {
-		if (!mentionQuery) return true;
-		const query = mentionQuery.toLowerCase();
-		return (
-			user.name.toLowerCase().includes(query) ||
-			user.email.toLowerCase().includes(query)
-		);
-	});
+	const mentionDebounceRef = useRef<NodeJS.Timeout | null>(null);
+	useEffect(() => {
+		if (!showMentionDropdown) {
+			setMentionCandidates([]);
+			setLoadingMentions(false);
+			if (mentionDebounceRef.current) {
+				clearTimeout(mentionDebounceRef.current);
+				mentionDebounceRef.current = null;
+			}
+			return;
+		}
+		if (mentionDebounceRef.current) clearTimeout(mentionDebounceRef.current);
+		mentionDebounceRef.current = setTimeout(() => {
+			mentionDebounceRef.current = null;
+			fetchMentionCandidates(mentionQuery);
+		}, 200);
+		return () => {
+			if (mentionDebounceRef.current)
+				clearTimeout(mentionDebounceRef.current);
+		};
+	}, [showMentionDropdown, mentionQuery, fetchMentionCandidates]);
+
+	// Reset selected index when candidates change
+	useEffect(() => {
+		setSelectedMentionIndex(0);
+	}, [mentionCandidates]);
 
 	// Handle textarea input for mention detection
 	const handleTextareaChange = (
@@ -169,7 +197,7 @@ export default function Feed() {
 
 	// Handle keyboard navigation in mention dropdown
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		if (!showMentionDropdown || filteredUsers.length === 0) {
+		if (!showMentionDropdown || mentionCandidates.length === 0) {
 			// Allow normal typing if dropdown is not shown
 			return;
 		}
@@ -178,7 +206,7 @@ export default function Feed() {
 			e.preventDefault();
 			setSelectedMentionIndex((prev) => {
 				const newIndex =
-					prev < filteredUsers.length - 1 ? prev + 1 : prev;
+					prev < mentionCandidates.length - 1 ? prev + 1 : prev;
 				// Scroll selected item into view
 				setTimeout(() => {
 					const selectedElement =
@@ -211,8 +239,8 @@ export default function Feed() {
 			});
 		} else if (e.key === "Enter" || e.key === "Tab") {
 			e.preventDefault();
-			if (filteredUsers[selectedMentionIndex]) {
-				selectMention(filteredUsers[selectedMentionIndex]);
+			if (mentionCandidates[selectedMentionIndex]) {
+				selectMention(mentionCandidates[selectedMentionIndex]);
 			}
 		} else if (e.key === "Escape") {
 			e.preventDefault();
@@ -469,22 +497,36 @@ export default function Feed() {
 								</div>
 							)}
 
-							{/* Mention Autocomplete Dropdown */}
+							{/* Mention Autocomplete Dropdown - only fetches when @ is typed */}
 							<AnimatePresence>
-								{showMentionDropdown &&
-									filteredUsers.length > 0 && (
-										<motion.div
-											ref={mentionDropdownRef}
-											initial={{ opacity: 0, y: -10 }}
-											animate={{ opacity: 1, y: 0 }}
-											exit={{ opacity: 0, y: -10 }}
-											className='absolute top-full left-0 mt-2 w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200 z-[9999] max-h-60 overflow-y-auto'>
-											<div className='p-2'>
-												<div className='text-xs text-gray-500 font-secondary px-2 py-1 mb-1'>
-													Select a user to mention
+								{showMentionDropdown && (
+									<motion.div
+										ref={mentionDropdownRef}
+										initial={{ opacity: 0, y: -10 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -10 }}
+										className='absolute top-full left-0 mt-2 w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200 z-[9999] max-h-60 overflow-y-auto'>
+										<div className='p-2'>
+											{loadingMentions ? (
+												<div className='flex items-center justify-center gap-2 py-4'>
+													<LoadingDots size='sm' />
+													<span className='text-sm text-gray-500 font-secondary'>
+														Searching...
+													</span>
 												</div>
-												{filteredUsers.map(
-													(user, index) => (
+											) : mentionCandidates.length === 0 ? (
+												<div className='py-4 text-center text-sm text-gray-500 font-secondary'>
+													{mentionQuery.trim()
+														? "No users found. Try a different search."
+														: "Type to search by name or email"}
+												</div>
+											) : (
+												<>
+													<div className='text-xs text-gray-500 font-secondary px-2 py-1 mb-1'>
+														Select a user to mention
+													</div>
+													{mentionCandidates.map(
+														(user, index) => (
 														<button
 															key={user._id}
 															data-mention-index={
@@ -533,9 +575,11 @@ export default function Feed() {
 														</button>
 													),
 												)}
-											</div>
-										</motion.div>
-									)}
+												</>
+											)}
+										</div>
+									</motion.div>
+								)}
 							</AnimatePresence>
 						</div>
 						<div className='flex items-center justify-between pt-2'>

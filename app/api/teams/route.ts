@@ -3,11 +3,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Team from '@/models/Team';
+import User from '@/models/User';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
@@ -15,26 +16,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = (session.user as any).role;
+    const role = (session.user as { role?: string }).role;
     if (role !== 'admin' && role !== 'hr') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await connectDB();
 
-    const teams = await Team.find()
-      .populate('leader', 'name email profileImage mobileNumber')
-      .populate('members', 'name email profileImage mobileNumber')
-      .populate('createdBy', 'name email profileImage')
-      .sort({ createdAt: -1 })
-      .lean();
+    const [teams, users] = await Promise.all([
+      Team.find()
+        .populate('leader', 'name email profileImage mobileNumber')
+        .populate('members', 'name email profileImage mobileNumber')
+        .populate('createdBy', 'name email profileImage')
+        .sort({ createdAt: -1 })
+        .lean(),
+      User.find({ role: { $ne: 'admin' } })
+        .select('_id name email profileImage')
+        .sort({ name: 1 })
+        .lean(),
+    ]);
 
-    const response = NextResponse.json({ teams });
+    const response = NextResponse.json({ teams, users });
     response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600');
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get teams error:', error);
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Server error' },
+      { status: 500 }
+    );
   }
 }
 

@@ -1,5 +1,4 @@
 import nodemailer from "nodemailer";
-import { BASE_URL } from "@/lib/constant";
 
 const transporter = nodemailer.createTransport({
 	host: process.env.SMTP_HOST,
@@ -27,7 +26,7 @@ export async function sendVerificationEmail(
 	token: string,
 	name?: string,
 ) {
-	const verificationUrl = `${BASE_URL}/verify?token=${token}`;
+	const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/verify?token=${token}`;
 
 	const mailOptions = {
 		from: `"Maverix" <${process.env.FROM_EMAIL}>`,
@@ -121,7 +120,7 @@ export async function sendVerificationEmail(
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
-	const resetUrl = `${BASE_URL}/reset-password?token=${token}`;
+	const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
 
 	const mailOptions = {
 		from: `"Maverix" <${process.env.FROM_EMAIL}>`,
@@ -333,7 +332,7 @@ export async function sendLeaveRequestNotificationToHR(
               </div>
 
               <div style="text-align: center; margin-top: 30px;">
-                  <a href="${BASE_URL}/hr/leaves" 
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL}/hr/leaves" 
                    style="background-color: #1a73e8; 
                           color: white; 
                           padding: 14px 30px; 
@@ -507,7 +506,7 @@ export async function sendLeaveStatusNotificationToEmployee(
 				}
 
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${BASE_URL}/employee/leaves" 
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL}/employee/leaves" 
                    style="background-color: ${statusColor}; 
                           color: white; 
                           padding: 14px 30px; 

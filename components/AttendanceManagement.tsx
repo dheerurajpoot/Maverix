@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
 	format,
 	startOfDay,
@@ -69,11 +69,15 @@ export default function AttendanceManagement({
 	isAdminOrHR = false,
 }: AttendanceManagementProps) {
 	const searchParams = useSearchParams();
+	const PAGE_SIZE = 15;
 	const [selectedDate, setSelectedDate] = useState(new Date());
 	const [employees, setEmployees] = useState<Employee[]>([]);
 	const [attendance, setAttendance] =
 		useState<Attendance[]>(initialAttendance);
 	const [loading, setLoading] = useState(false);
+	const [loadingMore, setLoadingMore] = useState(false);
+	const [totalEmployees, setTotalEmployees] = useState(0);
+	const [hasMore, setHasMore] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [employeesOnLeave, setEmployeesOnLeave] = useState<Set<string>>(
 		new Set(),
@@ -123,40 +127,85 @@ export default function AttendanceManagement({
 		}
 	}, [searchParams]);
 
-	const fetchEmployeesOnLeave = useCallback(async () => {
-		try {
+	const fetchPage = useCallback(
+		async (skip: number, append: boolean) => {
+			if (append) setLoadingMore(true);
+			else setLoading(true);
+			try {
+				const dateStr = format(selectedDate, "yyyy-MM-dd");
+				const params = new URLSearchParams({
+					date: dateStr,
+					limit: String(PAGE_SIZE),
+					skip: String(skip),
+				});
+				if (searchTerm.trim()) params.set("search", searchTerm.trim());
+				const res = await fetch(`/api/admin/attendance-page?${params}`);
+				const data = await res.json();
+				if (!res.ok) return;
+				const empList = data.employees ?? [];
+				const attList = data.attendance ?? [];
+				const onLeave = new Set<string>(data.userIdsOnLeave ?? []);
+				const defaultLimit = data.defaultClockInTimeLimit ?? "";
+				const penaltyObj = data.penalties ?? {};
+				const total = data.total ?? 0;
+				const hasMoreVal = data.hasMore ?? false;
+
+				setTotalEmployees(total);
+				setHasMore(hasMoreVal);
+				setDefaultTimeLimit(defaultLimit);
+				setEmployeesOnLeave(onLeave);
+				setEmployees((prev) =>
+					append ? [...prev, ...empList] : empList,
+				);
+				setAttendance((prev) =>
+					append ? [...prev, ...attList] : attList,
+				);
+				setPenalties((prev) => {
+					const next = append ? new Map(prev) : new Map();
+					Object.entries(penaltyObj).forEach(
+						([uid, val]: [string, unknown]) => {
+							next.set(uid, val as { hasPenalty: boolean });
+						},
+					);
+					return next;
+				});
+			} catch (err) {
+				console.error("Error fetching attendance page:", err);
+			} finally {
+				setLoading(false);
+				setLoadingMore(false);
+			}
+		},
+		[selectedDate, searchTerm],
+	);
+
+	const fetchPenaltyDetails = useCallback(
+		async (userId: string) => {
 			const dateStr = format(selectedDate, "yyyy-MM-dd");
 			const res = await fetch(
-				`/api/leave/on-leave-by-date?date=${dateStr}`,
+				`/api/attendance/penalty?userId=${userId}&date=${dateStr}`,
 			);
 			const data = await res.json();
-			if (res.ok && data.userIdsOnLeave) {
-				setEmployeesOnLeave(new Set(data.userIdsOnLeave));
+			if (res.ok && data.hasPenalty && data.penaltyDetails) {
+				setSelectedPenalty(data.penaltyDetails);
 			}
-		} catch (err) {
-			console.error("Error fetching employees on leave:", err);
-		}
-	}, [selectedDate]);
+		},
+		[selectedDate],
+	);
 
 	const fetchPenalties = useCallback(async () => {
 		if (!isAdminOrHR) {
-			// For employees, fetch penalties for all dates in the current month
 			try {
 				const penaltyMap = new Map();
-
-				// Get all unique dates from attendance records in the current month
 				const monthStart = startOfMonth(selectedMonth);
 				const monthEnd = endOfMonth(selectedMonth);
 				const attendanceDates = new Set<string>();
-
 				initialAttendance.forEach((att) => {
 					const attDate = parseISO(att.date);
 					if (attDate >= monthStart && attDate <= monthEnd) {
 						attendanceDates.add(format(attDate, "yyyy-MM-dd"));
 					}
 				});
-
-				// Fetch penalties for each date
 				const penaltyPromises = Array.from(attendanceDates).map(
 					async (dateStr) => {
 						try {
@@ -165,7 +214,6 @@ export default function AttendanceManagement({
 							);
 							const data = await res.json();
 							if (res.ok && data.hasPenalty) {
-								// Store penalty with date as key
 								penaltyMap.set(dateStr, data.penaltyDetails);
 							}
 						} catch (err) {
@@ -176,11 +224,8 @@ export default function AttendanceManagement({
 						}
 					},
 				);
-
 				await Promise.all(penaltyPromises);
-				// For employees, also store with 'self' key for backward compatibility
 				if (penaltyMap.size > 0) {
-					// Get the most recent penalty (if multiple)
 					const latestPenalty = Array.from(penaltyMap.values())[0];
 					penaltyMap.set("self", latestPenalty);
 				}
@@ -189,68 +234,8 @@ export default function AttendanceManagement({
 				console.error("Error fetching penalties:", err);
 				setPenalties(new Map());
 			}
-		} else {
-			// For admin/HR, fetch penalties for all employees on the selected date
-			try {
-				const dateStr = format(selectedDate, "yyyy-MM-dd");
-				const penaltyMap = new Map();
-
-				// Fetch penalties for each employee
-				const employeeIds = employees.map((emp) => emp._id);
-				const penaltyPromises = employeeIds.map(async (userId) => {
-					try {
-						const res = await fetch(
-							`/api/attendance/penalty?userId=${userId}&date=${dateStr}`,
-						);
-						const data = await res.json();
-						if (res.ok && data.hasPenalty) {
-							penaltyMap.set(userId, data.penaltyDetails);
-						}
-					} catch (err) {
-						console.error(
-							`Error fetching penalty for user ${userId}:`,
-							err,
-						);
-					}
-				});
-
-				await Promise.all(penaltyPromises);
-				setPenalties(penaltyMap);
-			} catch (err) {
-				console.error("Error fetching penalties:", err);
-			}
 		}
-	}, []);
-
-	const fetchAllEmployees = useCallback(async () => {
-		try {
-			setLoading(true);
-			const res = await fetch("/api/users");
-			const data = await res.json();
-			if (res.ok && data.users) {
-				// Include both employees and HR users (exclude only admin)
-				setEmployees(
-					data.users.filter((u: Employee) => u.role !== "admin"),
-				);
-			}
-		} catch (err) {
-			console.error("Error fetching employees:", err);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	const fetchDefaultTimeLimit = useCallback(async () => {
-		try {
-			const res = await fetch("/api/settings/clock-in-time-limit");
-			const data = await res.json();
-			if (res.ok && data.defaultClockInTimeLimit) {
-				setDefaultTimeLimit(data.defaultClockInTimeLimit);
-			}
-		} catch (err) {
-			console.error("Error fetching default time limit:", err);
-		}
-	}, []);
+	}, [isAdminOrHR, selectedMonth, initialAttendance]);
 
 	const fetchUserClockInTime = useCallback(async () => {
 		if (!isAdminOrHR) {
@@ -370,40 +355,45 @@ export default function AttendanceManagement({
 		[defaultTimeLimit],
 	);
 
-	const fetchAttendance = useCallback(async () => {
-		try {
-			const dateStr = format(selectedDate, "yyyy-MM-dd");
-			const res = await fetch(`/api/attendance/by-date?date=${dateStr}`);
-			const data = await res.json();
-			if (res.ok && data.attendance) {
-				setAttendance(data.attendance);
-			}
-		} catch (err) {
-			console.error("Error fetching attendance:", err);
-		}
-	}, [selectedDate]);
-
-	// Fetch all employees if admin/hr
+	// Admin/HR: single combined fetch on mount, immediate on date change, debounced on search
+	const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+	const adminFetchedRef = useRef(false);
+	const prevDateRef = useRef<string>("");
 	useEffect(() => {
-		if (isAdminOrHR) {
-			fetchAllEmployees();
-		}
-	}, [isAdminOrHR]);
+		if (!isAdminOrHR) return;
+		const dateStr = format(selectedDate, "yyyy-MM-dd");
+		const dateChanged = prevDateRef.current !== dateStr;
+		prevDateRef.current = dateStr;
 
-	// Fetch attendance when date changes
+		if (!adminFetchedRef.current || dateChanged) {
+			adminFetchedRef.current = true;
+			fetchPage(0, false);
+			return;
+		}
+		if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+		searchDebounceRef.current = setTimeout(() => {
+			fetchPage(0, false);
+			searchDebounceRef.current = null;
+		}, 300);
+		return () => {
+			if (searchDebounceRef.current)
+				clearTimeout(searchDebounceRef.current);
+		};
+	}, [isAdminOrHR, selectedDate, searchTerm]);
+
+	// Employee: fetch penalties for month; fetch profile/leaves when needed
 	useEffect(() => {
-		if (isAdminOrHR) {
-			fetchAttendance();
-			fetchEmployeesOnLeave();
+		if (!isAdminOrHR) {
+			fetchPenalties();
+		}
+	}, [isAdminOrHR, selectedMonth]);
+
+	useEffect(() => {
+		if (!isAdminOrHR) {
 			fetchUserClockInTime();
 			fetchLeavesForMonth();
-			fetchDefaultTimeLimit();
-			fetchPenalties();
-		} else {
-			// For employees, fetch penalties for the month view
-			fetchPenalties();
 		}
-	}, [isAdminOrHR, selectedDate, selectedMonth]);
+	}, [isAdminOrHR, selectedMonth]);
 
 	const formatTime = (dateString: string) => {
 		return format(new Date(dateString), "hh:mm a");
@@ -738,10 +728,15 @@ export default function AttendanceManagement({
 							</div>
 							<div className='flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200'>
 								<span className='text-sm font-semibold text-gray-700 font-secondary'>
-									Total:
+									{totalEmployees > 0 && hasMore
+										? "Showing"
+										: "Total"}
 								</span>
 								<span className='text-lg font-bold text-blue-700 font-primary'>
 									{dailyAttendance?.employees.length}
+									{totalEmployees > 0 && hasMore
+										? ` of ${totalEmployees}`
+										: ""}
 								</span>
 								<span className='text-xs text-gray-600 font-secondary'>
 									{dailyAttendance?.employees.length === 1
@@ -764,7 +759,9 @@ export default function AttendanceManagement({
 						<div className='bg-white/95 backdrop-blur-xl rounded-md shadow-lg border border-white/50 p-12 text-center'>
 							<Clock className='w-12 h-12 text-gray-400 mx-auto mb-3' />
 							<p className='text-gray-600 font-secondary'>
-								No employees found
+								{employees.length > 0 || totalEmployees > 0
+									? "No employees match the current filters. Try \"All\" or a different filter."
+									: "No employees found"}
 							</p>
 						</div>
 					) : (
@@ -896,7 +893,6 @@ export default function AttendanceManagement({
 																						penalties.get(
 																							employeeId,
 																						);
-																					// Show penalty tag only on the date when penalty was actually created
 																					const selectedDateStr =
 																						format(
 																							selectedDate,
@@ -909,10 +905,12 @@ export default function AttendanceManagement({
 																							penalty.lateArrivalDate ===
 																								selectedDateStr);
 																					const hasPenalty =
-																						isPenaltyDate &&
-																						penalty &&
-																						penalty.penaltyAmount >
-																							0;
+																						penalty?.hasPenalty ===
+																							true ||
+																						(isPenaltyDate &&
+																							penalty &&
+																							penalty.penaltyAmount >
+																								0);
 
 																					if (
 																						hasPenalty
@@ -920,9 +918,14 @@ export default function AttendanceManagement({
 																						return (
 																							<button
 																								onClick={() =>
-																									setSelectedPenalty(
-																										penalty,
-																									)
+																									penalty?.penaltyAmount !=
+																									null
+																										? setSelectedPenalty(
+																												penalty,
+																											)
+																										: fetchPenaltyDetails(
+																												employeeId,
+																											)
 																								}
 																								className='px-2 py-0.5 text-[10px] font-semibold rounded-full font-secondary bg-red-200 text-red-800 whitespace-nowrap flex items-center gap-1 cursor-pointer hover:bg-red-300 transition-colors'>
 																								<Clock className='w-3 h-3' />
@@ -1105,6 +1108,26 @@ export default function AttendanceManagement({
 									</tbody>
 								</table>
 							</div>
+							{hasMore && (
+								<div className='flex justify-center py-4 border-t border-gray-100'>
+									<button
+										type='button'
+										onClick={() =>
+											fetchPage(employees.length, true)
+										}
+										disabled={loadingMore}
+										className='px-5 py-2.5 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none'>
+										{loadingMore ? (
+											<span className='flex items-center gap-2'>
+												<LoadingDots size='sm' />{" "}
+												Loading...
+											</span>
+										) : (
+											"Load more"
+										)}
+									</button>
+								</div>
+							)}
 						</div>
 					)}
 				</div>

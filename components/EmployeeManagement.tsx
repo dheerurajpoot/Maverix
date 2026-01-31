@@ -443,37 +443,6 @@ export default function EmployeeManagement({
 		fetchDefaultTimeLimit();
 		fetchMaxLateDays();
 
-		const interval = setInterval(() => {
-			if (document.visibilityState === "visible") {
-				fetchEmployeesOnLeave();
-			}
-		}, 300000);
-
-		const handleFocus = () => {
-			fetchEmployees(currentPageRef.current);
-			fetchEmployeesOnLeave();
-		};
-		window.addEventListener("focus", handleFocus);
-
-		// Listen for custom event to refresh immediately when leave status changes
-		const handleLeaveStatusChange = () => {
-			// Clear state first, then fetch fresh data
-			setEmployeesOnLeaveToday([]);
-			// Small delay to ensure database is updated
-			setTimeout(() => {
-				fetchEmployeesOnLeave();
-			}, 200);
-		};
-		window.addEventListener("leaveStatusChanged", handleLeaveStatusChange);
-
-		return () => {
-			clearInterval(interval);
-			window.removeEventListener("focus", handleFocus);
-			window.removeEventListener(
-				"leaveStatusChanged",
-				handleLeaveStatusChange,
-			);
-		};
 	}, [isHROrAdmin]);
 
 	const designationsFromEmployees = useMemo(() => {

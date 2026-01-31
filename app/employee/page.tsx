@@ -61,7 +61,7 @@ export default function EmployeeDashboard() {
 		setGreeting(getGreeting());
 		const interval = setInterval(() => {
 			setGreeting(getGreeting());
-		}, 300000); // Check every 5 minutes
+		}, 1800000); // Check every 30 minutes
 
 		return () => clearInterval(interval);
 	}, []);

@@ -102,6 +102,7 @@ export default function TeamManagement() {
 
 	const fetchEmployees = useCallback(async () => {
 		try {
+			const res = await fetch("/api/users");
 			const data = await res.json();
 			if (res.ok) {
 				setEmployees(data.users || []);

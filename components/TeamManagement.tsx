@@ -89,21 +89,32 @@ export default function TeamManagement() {
 			const res = await fetch("/api/teams");
 			const data = await res.json();
 			if (res.ok) {
-				setTeams(data.teams ?? []);
-				setEmployees(data.users ?? []);
+				setTeams(data.teams);
 			} else {
 				toast.error(data.error || "Failed to fetch teams");
 			}
-		} catch (err) {
+		} catch (err: any) {
 			toast.error("An error occurred");
 		} finally {
 			setTeamsLoading(false);
 		}
 	}, []);
 
+	const fetchEmployees = useCallback(async () => {
+		try {
+			const data = await res.json();
+			if (res.ok) {
+				setEmployees(data.users || []);
+			}
+		} catch (err: any) {
+			console.error("Failed to fetch employees:", err);
+		}
+	}, []);
+
 	useEffect(() => {
 		fetchTeams();
-	}, [fetchTeams]);
+		fetchEmployees();
+	}, []);
 
 	const handleOpenModal = (team?: Team) => {
 		if (team) {
